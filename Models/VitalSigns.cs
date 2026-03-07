@@ -1,4 +1,4 @@
-namespace HBEmu.Models;
+namespace EduSim.Models;
 
 public class VitalSigns
 {

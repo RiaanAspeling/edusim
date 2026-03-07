@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
-using HBEmu.Models;
+using EduSim.Models;
 
-namespace HBEmu.Services;
+namespace EduSim.Services;
 
 public class SessionManager
 {

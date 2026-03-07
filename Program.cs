@@ -1,5 +1,5 @@
-using HBEmu.Hubs;
-using HBEmu.Services;
+using EduSim.Hubs;
+using EduSim.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 

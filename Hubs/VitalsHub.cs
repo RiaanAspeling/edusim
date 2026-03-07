@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.SignalR;
-using HBEmu.Models;
-using HBEmu.Services;
+using EduSim.Models;
+using EduSim.Services;
 
-namespace HBEmu.Hubs;
+namespace EduSim.Hubs;
 
 public class VitalsHub : Hub
 {

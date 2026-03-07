@@ -1,4 +1,4 @@
-# HBEmu - Patient Vital Signs Monitor Simulator
+# EduSim - Patient Vital Signs Monitor Simulator
 
 A web-based patient vital signs monitor simulator for medical and nursing education. An instructor controls the patient's vitals from a phone or tablet while students observe and respond to changes on a fullscreen PC monitor display.
 
@@ -23,22 +23,22 @@ A web-based patient vital signs monitor simulator for medical and nursing educat
 dotnet run
 ```
 
-The app starts on `http://0.0.0.0:5100`.
+The app starts on `http://0.0.0.0:5200`.
 
 ### Student (PC)
 
-Open `http://localhost:5100/monitor/` in a browser and enter the session code. Double-click to toggle fullscreen.
+Open `http://localhost:5200/monitor/` in a browser and enter the session code. Double-click to toggle fullscreen.
 
 ### Instructor (Phone/Tablet)
 
-Open `http://<pc-ip-address>:5100/control/` on your device. Create a new session and share the code with the student.
+Open `http://<pc-ip-address>:5200/control/` on your device. Create a new session and share the code with the student.
 
 > Both devices must be on the same network.
 
 ## Project Structure
 
 ```
-HBEmu/
+EduSim/
 ├── Program.cs                     # App entry point, SignalR + static files
 ├── Hubs/VitalsHub.cs              # SignalR hub for session and vitals
 ├── Models/
