@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HBEmu - Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #111;
+            color: #e0e0e0;
+            font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .dashboard {
+            text-align: center;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            font-size: 32px;
+            color: #4fc3f7;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 32px;
+        }
+
+        .quick-start {
+            margin-bottom: 32px;
+        }
+
+        .quick-start-btn {
+            display: inline-block;
+            padding: 16px 40px;
+            font-size: 18px;
+            font-weight: 600;
+            background: #1976d2;
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .quick-start-btn:hover { background: #1e88e5; }
+        .quick-start-btn:active { background: #1565c0; }
+        .quick-start-btn:disabled { background: #555; cursor: wait; }
+
+        .quick-start-hint {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+        }
+
+        .divider {
+            color: #444;
+            font-size: 13px;
+            margin-bottom: 24px;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .card {
+            display: block;
+            background: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 16px;
+            padding: 32px 20px;
+            text-decoration: none;
+            color: inherit;
+            transition: border-color 0.2s, transform 0.1s;
+            cursor: pointer;
+        }
+
+        .card:hover {
+            border-color: #4fc3f7;
+            transform: translateY(-2px);
+        }
+
+        .card:active { transform: translateY(0); }
+
+        .card-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .card-monitor .card-title { color: #00ff41; }
+        .card-control .card-title { color: #4fc3f7; }
+
+        .card-desc {
+            font-size: 13px;
+            color: #888;
+            line-height: 1.4;
+        }
+
+        .card-hint {
+            font-size: 11px;
+            color: #555;
+            margin-top: 10px;
+        }
+
+        .info {
+            color: #666;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .info strong { color: #999; }
+
+        @media (max-width: 480px) {
+            .cards { grid-template-columns: 1fr; }
+            .dashboard { padding: 24px 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <h1>HBEmu</h1>
+        <p class="subtitle">Patient Vital Signs Monitor Simulator</p>
+
+        <div class="quick-start">
+            <button class="quick-start-btn" onclick="quickStart()">Quick Start</button>
+            <div class="quick-start-hint">Creates a session and opens both screens in new tabs</div>
+        </div>
+
+        <div class="divider">- or open individually -</div>
+
+        <div class="cards">
+            <a class="card card-monitor" href="/monitor/" target="_blank">
+                <span class="card-icon">&#x1F4BB;</span>
+                <div class="card-title">Patient Monitor</div>
+                <div class="card-desc">Fullscreen vital signs display with waveforms</div>
+                <div class="card-hint">Opens in new tab</div>
+            </a>
+            <a class="card card-control" href="/control/" target="_blank">
+                <span class="card-icon">&#x1F4F1;</span>
+                <div class="card-title">Instructor Control</div>
+                <div class="card-desc">Adjust vitals, rhythms, and scenarios</div>
+                <div class="card-hint">Opens in new tab</div>
+            </a>
+        </div>
+
+        <div class="info">
+            <strong>Manual setup:</strong> Open Instructor Control to create a session,
+            then open the Patient Monitor and enter the session code.
+        </div>
+    </div>
+
+    <script>
+        async function quickStart() {
+            const btn = document.querySelector('.quick-start-btn');
+            btn.disabled = true;
+            btn.textContent = 'Creating session...';
+            try {
+                const resp = await fetch('/api/session', { method: 'POST' });
+                const data = await resp.json();
+                const code = data.code;
+                window.open('/control/?session=' + code, '_blank');
+                window.open('/monitor/?session=' + code, '_blank');
+                btn.textContent = 'Session: ' + code;
+            } catch (e) {
+                btn.textContent = 'Quick Start';
+                btn.disabled = false;
+                alert('Failed to create session');
+            }
+        }
+    </script>
+</body>
+</html>

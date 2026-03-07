@@ -13,6 +13,12 @@ app.UseStaticFiles();
 
 app.MapHub<VitalsHub>("/vitalsHub");
 
-app.MapGet("/", () => Results.Redirect("/monitor/"));
+app.MapPost("/api/session", (SessionManager sm) =>
+{
+    var session = sm.CreateSession();
+    return Results.Ok(new { code = session.Code });
+});
+
+app.MapGet("/", () => Results.Redirect("/dashboard/"));
 
 app.Run();

@@ -23,7 +23,10 @@
     <div id="controlPanel" class="control-panel" style="display:none;">
         <div class="header">
             <h2>Session: <span id="sessionCodeDisplay">---</span></h2>
-            <p class="hint">Share this code with the student monitor</p>
+            <div class="header-actions">
+                <p class="hint">Share this code with the student monitor</p>
+                <button class="copy-btn" onclick="copyMonitorURL()" id="copyBtn">Copy Monitor URL</button>
+            </div>
         </div>
 
         <div class="controls-scroll">
@@ -33,7 +36,7 @@
                     <label>Heart Rate</label>
                     <span class="control-value" id="hrDisplay">72 bpm</span>
                 </div>
-                <input type="range" id="hrSlider" min="20" max="220" value="72"
+                <input type="range" id="hrSlider" min="20" max="300" value="72"
                     oninput="updateSlider('hr')">
                 <div class="preset-row">
                     <button onclick="setHR(40)">Brady 40</button>
@@ -51,8 +54,6 @@
                 </div>
                 <div class="rhythm-grid">
                     <button class="rhythm-btn active" data-rhythm="nsr" onclick="setRhythm('nsr')">NSR</button>
-                    <button class="rhythm-btn" data-rhythm="sinus_tachy" onclick="setRhythm('sinus_tachy')">Sinus Tachy</button>
-                    <button class="rhythm-btn" data-rhythm="sinus_brady" onclick="setRhythm('sinus_brady')">Sinus Brady</button>
                     <button class="rhythm-btn" data-rhythm="afib" onclick="setRhythm('afib')">A-Fib</button>
                     <button class="rhythm-btn danger" data-rhythm="vtach" onclick="setRhythm('vtach')">V-Tach</button>
                     <button class="rhythm-btn danger" data-rhythm="vfib" onclick="setRhythm('vfib')">V-Fib</button>
@@ -66,7 +67,7 @@
                     <label>SpO2</label>
                     <span class="control-value" id="spo2Display">98%</span>
                 </div>
-                <input type="range" id="spo2Slider" min="50" max="100" value="98"
+                <input type="range" id="spo2Slider" min="0" max="100" value="98"
                     oninput="updateSlider('spo2')">
                 <div class="preset-row">
                     <button onclick="setSpO2(70)">Critical 70</button>

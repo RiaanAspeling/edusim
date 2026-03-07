@@ -72,8 +72,7 @@ function updateRhythmButtons(rhythm) {
         btn.classList.toggle('active', btn.dataset.rhythm === rhythm);
     });
     const names = {
-        nsr: 'NSR', sinus_tachy: 'Sinus Tachy', sinus_brady: 'Sinus Brady',
-        afib: 'A-Fib', vtach: 'V-Tach', vfib: 'V-Fib', asystole: 'Asystole'
+        nsr: 'NSR', afib: 'A-Fib', vtach: 'V-Tach', vfib: 'V-Fib', asystole: 'Asystole'
     };
     document.getElementById('rhythmDisplay').textContent = names[rhythm] || rhythm;
 }
@@ -165,9 +164,32 @@ function setTemp(val) {
     sendVitals();
 }
 
+// Vital overrides applied automatically when certain rhythms are selected
+const rhythmVitals = {
+    nsr: { heartRate: 72, spO2: 98, systolicBP: 120, diastolicBP: 80, respiratoryRate: 16, etCO2: 38 },
+    vtach: { heartRate: 220, spO2: 82, systolicBP: 70, diastolicBP: 40, respiratoryRate: 6, etCO2: 15 },
+    vfib: { heartRate: 0, spO2: 0, systolicBP: 0, diastolicBP: 0, respiratoryRate: 0, etCO2: 0 },
+    asystole: { heartRate: 0, spO2: 0, systolicBP: 0, diastolicBP: 0, respiratoryRate: 0, etCO2: 0 }
+};
+
 function setRhythm(rhythm) {
     currentVitals.rhythm = rhythm;
     updateRhythmButtons(rhythm);
+
+    // Apply vital overrides for this rhythm
+    const overrides = rhythmVitals[rhythm];
+    if (overrides) {
+        Object.assign(currentVitals, overrides);
+        document.getElementById('hrSlider').value = currentVitals.heartRate;
+        document.getElementById('spo2Slider').value = currentVitals.spO2;
+        document.getElementById('sysSlider').value = currentVitals.systolicBP;
+        document.getElementById('diaSlider').value = currentVitals.diastolicBP;
+        document.getElementById('rrSlider').value = currentVitals.respiratoryRate;
+        document.getElementById('etco2Slider').value = currentVitals.etCO2;
+        updateAllDisplays();
+        sendVitals();
+    }
+
     if (sessionCode) {
         connection.invoke("ChangeRhythm", sessionCode, rhythm);
     }
@@ -181,11 +203,11 @@ const scenarios = {
     },
     sepsis: {
         heartRate: 125, spO2: 91, systolicBP: 85, diastolicBP: 55,
-        respiratoryRate: 28, temperature: 39.5, etCO2: 28, rhythm: 'sinus_tachy'
+        respiratoryRate: 28, temperature: 39.5, etCO2: 28, rhythm: 'nsr'
     },
     mi: {
         heartRate: 100, spO2: 94, systolicBP: 90, diastolicBP: 60,
-        respiratoryRate: 22, temperature: 37.0, etCO2: 32, rhythm: 'sinus_tachy'
+        respiratoryRate: 22, temperature: 37.0, etCO2: 32, rhythm: 'nsr'
     },
     cardiac_arrest: {
         heartRate: 0, spO2: 60, systolicBP: 0, diastolicBP: 0,
@@ -193,19 +215,19 @@ const scenarios = {
     },
     respiratory_failure: {
         heartRate: 110, spO2: 78, systolicBP: 140, diastolicBP: 90,
-        respiratoryRate: 34, temperature: 37.2, etCO2: 65, rhythm: 'sinus_tachy'
+        respiratoryRate: 34, temperature: 37.2, etCO2: 65, rhythm: 'nsr'
     },
     hemorrhage: {
         heartRate: 130, spO2: 92, systolicBP: 75, diastolicBP: 45,
-        respiratoryRate: 26, temperature: 36.0, etCO2: 25, rhythm: 'sinus_tachy'
+        respiratoryRate: 26, temperature: 36.0, etCO2: 25, rhythm: 'nsr'
     },
     anaphylaxis: {
         heartRate: 140, spO2: 85, systolicBP: 70, diastolicBP: 40,
-        respiratoryRate: 30, temperature: 37.0, etCO2: 22, rhythm: 'sinus_tachy'
+        respiratoryRate: 30, temperature: 37.0, etCO2: 22, rhythm: 'nsr'
     },
     pe: {
         heartRate: 120, spO2: 82, systolicBP: 90, diastolicBP: 60,
-        respiratoryRate: 32, temperature: 37.3, etCO2: 18, rhythm: 'sinus_tachy'
+        respiratoryRate: 32, temperature: 37.3, etCO2: 18, rhythm: 'nsr'
     }
 };
 
@@ -254,8 +276,36 @@ document.getElementById('joinCodeInput').addEventListener('keyup', (e) => {
     if (e.key === 'Enter') joinExisting();
 });
 
+// Copy monitor URL to clipboard (fallback for non-HTTPS)
+function copyMonitorURL() {
+    if (!sessionCode) return;
+    const url = window.location.origin + '/monitor/?session=' + sessionCode;
+    const btn = document.getElementById('copyBtn');
+    const textarea = document.createElement('textarea');
+    textarea.value = url;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy Monitor URL'; }, 2000);
+}
+
+// Auto-join if session code is in URL query string
+function getSessionFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('session');
+}
+
 // Start connection
-connection.start().catch(err => {
+connection.start().then(() => {
+    const code = getSessionFromURL();
+    if (code) {
+        connection.invoke("JoinSession", code.toUpperCase());
+    }
+}).catch(err => {
     console.error('SignalR error:', err);
     document.getElementById('setupError').textContent = 'Failed to connect to server';
 });

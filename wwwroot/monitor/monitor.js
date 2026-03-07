@@ -21,11 +21,21 @@ let audioCtx = null;
 let lastBeepPhase = 1;
 
 function initAudio() {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
 }
+
+// Resume audio on any user interaction (required by browsers)
+document.addEventListener('click', initAudio, { once: false });
+document.addEventListener('keydown', initAudio, { once: false });
 
 function playBeep(frequency, duration) {
     if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.connect(gain);
@@ -77,7 +87,7 @@ function smoothVitals() {
 }
 
 function updateNumerics() {
-    document.getElementById('hrValue').textContent = Math.round(vitals.heartRate);
+    document.getElementById('hrValue').textContent = Math.round(ecgGen.getEffectiveHR());
     document.getElementById('spo2Value').textContent = Math.round(vitals.spO2);
     document.getElementById('bpValue').textContent =
         Math.round(vitals.systolicBP) + '/' + Math.round(vitals.diastolicBP);
@@ -88,8 +98,6 @@ function updateNumerics() {
 
 const rhythmNames = {
     nsr: 'Normal Sinus Rhythm',
-    sinus_tachy: 'Sinus Tachycardia',
-    sinus_brady: 'Sinus Bradycardia',
     afib: 'Atrial Fibrillation',
     vtach: 'V-Tach',
     vfib: 'V-Fib',
@@ -169,24 +177,31 @@ function generateSamples(dt) {
         const ecgSample = ecgGen.nextSample(sampleDt);
         pushSample(waveformState.ecg, ecgSample);
 
-        // Heart beep on R-wave detection
+        // Heart beep on R-wave detection (no beep during V-Fib/Asystole)
         const phase = ecgGen.getPhase();
-        if (phase < lastBeepPhase && vitals.rhythm !== 'asystole') {
+        const noOutput = ecgGen.hasNoOutput();
+        if (!noOutput && phase < lastBeepPhase) {
             playBeep(880, 0.06);
         }
         lastBeepPhase = phase;
 
-        // SpO2 pleth (synced to heart rate, amplitude reflects SpO2 value)
-        // Normal SpO2 ~98% = full amplitude, lower = weaker/noisier signal
-        const spo2Amplitude = Math.max(0, (vitals.spO2 - 50) / 50);
-        const spo2Noise = vitals.spO2 < 85 ? (85 - vitals.spO2) * 0.005 * (Math.random() - 0.5) : 0;
-        const spo2Sample = Waveforms.spo2Pleth(phase) * spo2Amplitude + spo2Noise;
-        pushSample(waveformState.spo2, spo2Sample);
+        // SpO2 and ABP: flat wavering lines when no cardiac output
+        if (noOutput) {
+            const spo2Sample = 0.02 * (Math.random() - 0.5);
+            pushSample(waveformState.spo2, spo2Sample);
+            const abpSample = 0.02 * (Math.random() - 0.5);
+            pushSample(waveformState.abp, abpSample);
+        } else {
+            // SpO2 pleth (synced to heart rate, amplitude scales linearly with SpO2 %)
+            const spo2Amplitude = Math.max(0, vitals.spO2 / 100);
+            const spo2Sample = Waveforms.spo2Pleth(phase) * spo2Amplitude;
+            pushSample(waveformState.spo2, spo2Sample);
 
-        // ABP (amplitude reflects BP values; flat if BP near zero e.g. cardiac arrest)
-        const bpScale = Math.max(0, vitals.systolicBP / 120);
-        const abpSample = Waveforms.abpWaveform(phase, vitals.systolicBP, vitals.diastolicBP) * Math.min(bpScale, 1);
-        pushSample(waveformState.abp, abpSample);
+            // ABP (amplitude reflects BP values)
+            const bpScale = Math.max(0, vitals.systolicBP / 120);
+            const abpSample = Waveforms.abpWaveform(phase, vitals.systolicBP, vitals.diastolicBP) * Math.min(bpScale, 1);
+            pushSample(waveformState.abp, abpSample);
+        }
 
         // Respiration phase (stops if RR is 0)
         if (vitals.respiratoryRate > 0) {
@@ -195,7 +210,7 @@ function generateSamples(dt) {
         }
 
         // Capnography (height reflects EtCO2 value; flat if RR is 0)
-        const capnoScale = vitals.respiratoryRate > 0 ? Math.max(0, vitals.etCO2 / 45) : 0;
+        const capnoScale = vitals.respiratoryRate > 0 ? Math.max(0, vitals.etCO2 / 80) : 0;
         const capnoSample = Waveforms.capnography(respPhase) * capnoScale;
         pushSample(waveformState.capno, capnoSample);
 
@@ -219,8 +234,8 @@ function animate(timestamp) {
     smoothVitals();
     generateSamples(dt);
 
-    drawWaveform('ecgCanvas', waveformState.ecg, '#00ff41', 2, -0.2, 0.95);
-    drawWaveform('spo2Canvas', waveformState.spo2, '#00e5ff', 2, -0.05, 1.1);
+    drawWaveform('ecgCanvas', waveformState.ecg, '#00ff41', 2, -0.95, 0.95);
+    drawWaveform('spo2Canvas', waveformState.spo2, '#00e5ff', 2, 0, 1.1);
     drawWaveform('abpCanvas', waveformState.abp, '#ff3333', 2, -0.05, 1.1);
     drawWaveform('capnoCanvas', waveformState.capno, '#ffff00', 1.5, -0.05, 1.1);
     drawWaveform('respCanvas', waveformState.resp, '#ffaa00', 1.5, -0.05, 1.1);
@@ -231,15 +246,14 @@ function animate(timestamp) {
 }
 
 // Alarm handling
-let alarmTimeout = null;
+let alarmInterval = null;
+const dangerousRhythms = { vtach: 'V-TACH ALARM', vfib: 'V-FIB ALARM', asystole: 'ASYSTOLE' };
 
 function showAlarm(type) {
     const overlay = document.getElementById('alarmOverlay');
     const text = document.getElementById('alarmText');
     const alarmMessages = {
-        vfib: 'V-FIB ALARM',
-        vtach: 'V-TACH ALARM',
-        asystole: 'ASYSTOLE',
+        ...dangerousRhythms,
         bradycardia: 'BRADYCARDIA',
         tachycardia: 'TACHYCARDIA',
         hypotension: 'HYPOTENSION',
@@ -248,26 +262,54 @@ function showAlarm(type) {
     text.textContent = alarmMessages[type] || type.toUpperCase();
     overlay.style.display = 'block';
     overlay.className = 'alarm-overlay alarm-active';
+    playAlarmTone();
+}
 
-    // Play alarm tone
-    if (audioCtx) {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.frequency.value = 660;
-        osc.type = 'square';
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.5);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 1.5);
-    }
+function hideAlarm() {
+    const overlay = document.getElementById('alarmOverlay');
+    overlay.style.display = 'none';
+    overlay.className = 'alarm-overlay';
+}
 
-    clearTimeout(alarmTimeout);
-    alarmTimeout = setTimeout(() => {
-        overlay.style.display = 'none';
-        overlay.className = 'alarm-overlay';
-    }, 5000);
+function playAlarmTone() {
+    if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.frequency.value = 660;
+    osc.type = 'square';
+    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.5);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 1.5);
+}
+
+// Persistent alarm: flash on 3s / off 2s while dangerous rhythm is active
+function startPersistentAlarm(type) {
+    stopPersistentAlarm();
+    showAlarm(type);
+    let visible = true;
+    alarmInterval = setInterval(() => {
+        // Stop if rhythm is no longer dangerous
+        if (!dangerousRhythms[vitals.rhythm]) {
+            stopPersistentAlarm();
+            return;
+        }
+        visible = !visible;
+        if (visible) {
+            showAlarm(vitals.rhythm);
+        } else {
+            hideAlarm();
+        }
+    }, visible ? 3000 : 2000);
+}
+
+function stopPersistentAlarm() {
+    clearInterval(alarmInterval);
+    alarmInterval = null;
+    hideAlarm();
 }
 
 // SignalR event handlers
@@ -291,9 +333,11 @@ connection.on("RhythmChanged", (rhythm) => {
     vitals.rhythm = rhythm;
     document.getElementById('rhythmLabel').textContent = rhythmNames[rhythm] || rhythm;
 
-    // Auto-trigger alarm for dangerous rhythms
-    if (['vfib', 'vtach', 'asystole'].includes(rhythm)) {
-        showAlarm(rhythm);
+    // Start/stop persistent alarm for dangerous rhythms
+    if (dangerousRhythms[rhythm]) {
+        startPersistentAlarm(rhythm);
+    } else {
+        stopPersistentAlarm();
     }
 });
 
@@ -352,8 +396,19 @@ document.addEventListener('dblclick', () => {
     }
 });
 
+// Auto-join if session code is in URL query string
+function getSessionFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('session');
+}
+
 // Start SignalR connection
-connection.start().catch(err => {
+connection.start().then(() => {
+    const code = getSessionFromURL();
+    if (code) {
+        connection.invoke("JoinSession", code.toUpperCase());
+    }
+}).catch(err => {
     console.error('SignalR connection error:', err);
     document.getElementById('joinError').textContent = 'Failed to connect to server';
 });
