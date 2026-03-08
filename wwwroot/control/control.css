@@ -193,20 +193,43 @@ body {
     color: #666;
 }
 
-.copy-btn {
+.header-buttons {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.copy-btn, .pause-btn {
     flex-shrink: 0;
     padding: 6px 14px;
     font-size: 12px;
     font-weight: 600;
     background: #2a2a2a;
-    color: #4fc3f7;
     border: 1px solid #4fc3f7;
     border-radius: 6px;
     cursor: pointer;
 }
 
+.copy-btn {
+    color: #4fc3f7;
+}
+
 .copy-btn:active {
     background: #1a3a4a;
+}
+
+.pause-btn {
+    color: #ffb74d;
+    border-color: #ffb74d;
+}
+
+.pause-btn:active {
+    background: #3a2a1a;
+}
+
+.pause-btn.paused {
+    color: #81c784;
+    border-color: #81c784;
 }
 
 .controls-scroll {

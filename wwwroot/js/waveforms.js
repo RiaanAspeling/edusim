@@ -252,9 +252,32 @@ class ECGGenerator {
         }
     }
 
-    // Normalized phase (0..1) for SpO2/ABP waveforms
+    // Normalized phase (0..1) for ECG beat tracking
     getPhase() {
         return this.beatElapsed / this.currentBeatDuration;
+    }
+
+    // Phase for pulse waveforms (ABP, SpO2).
+    // The arterial pulse shape has an intrinsic duration determined by
+    // left ventricular ejection time and arterial compliance (Windkessel
+    // model). This duration is largely independent of heart rate — only
+    // the diastolic decay time between pulses varies with R-R interval.
+    // We enforce a minimum effective duration so that short irregular
+    // beats don't compress the waveform into unrealistic spikes.
+    getPulsePhase() {
+        const MIN_PULSE_DURATION = 0.50; // seconds (~120bpm pulse width)
+        const effectiveDuration = Math.max(this.currentBeatDuration, MIN_PULSE_DURATION);
+        return Math.min(this.beatElapsed / effectiveDuration, 1.0);
+    }
+
+    // Previous beat's pulse phase at the current time — for bleed-through
+    // so ABP/SpO2 decay smoothly across beat boundaries (same principle
+    // as ECG T-wave bleed-through).
+    getPrevPulsePhase() {
+        const MIN_PULSE_DURATION = 0.50;
+        const timeSincePrevBeat = this.prevBeatDuration + this.beatElapsed;
+        const effectiveDuration = Math.max(this.prevBeatDuration, MIN_PULSE_DURATION);
+        return Math.min(timeSincePrevBeat / effectiveDuration, 1.0);
     }
 
     // Effective HR derived from current R-R interval (fluctuates in A-Fib)

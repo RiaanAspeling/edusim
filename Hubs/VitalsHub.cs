@@ -58,6 +58,16 @@ public class VitalsHub : Hub
         await Clients.Group(code.ToUpper()).SendAsync("AlarmTriggered", alarmType);
     }
 
+    public async Task PauseMonitor(string code)
+    {
+        await Clients.Group(code.ToUpper()).SendAsync("MonitorPaused");
+    }
+
+    public async Task ResumeMonitor(string code)
+    {
+        await Clients.Group(code.ToUpper()).SendAsync("MonitorResumed");
+    }
+
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         await base.OnDisconnectedAsync(exception);

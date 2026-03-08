@@ -25,7 +25,10 @@
             <h2>Session: <span id="sessionCodeDisplay">---</span></h2>
             <div class="header-actions">
                 <p class="hint">Share this code with the student monitor</p>
-                <button class="copy-btn" onclick="copyMonitorURL()" id="copyBtn">Copy Monitor URL</button>
+                <div class="header-buttons">
+                    <button class="pause-btn" onclick="togglePause()" id="pauseBtn">Pause</button>
+                    <button class="copy-btn" onclick="copyMonitorURL()" id="copyBtn">Copy Monitor URL</button>
+                </div>
             </div>
         </div>
 
@@ -91,10 +94,10 @@
                 </div>
                 <div class="dual-slider">
                     <label class="sub-label">Systolic</label>
-                    <input type="range" id="sysSlider" min="50" max="250" value="120"
+                    <input type="range" id="sysSlider" min="0" max="250" value="120"
                         oninput="updateSlider('bp')">
                     <label class="sub-label">Diastolic</label>
-                    <input type="range" id="diaSlider" min="20" max="150" value="80"
+                    <input type="range" id="diaSlider" min="0" max="150" value="80"
                         oninput="updateSlider('bp')">
                 </div>
                 <div class="preset-row">

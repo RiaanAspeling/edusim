@@ -197,19 +197,21 @@ function generateSamples(dt) {
             const abpSample = 0.02 * (Math.random() - 0.5);
             pushSample(waveformState.abp, abpSample);
         } else {
-            // SpO2 pleth (synced to heart rate, amplitude scales with SpO2 %
-            // and stroke volume — shorter R-R = smaller pulse)
+            const pulsePhase = ecgGen.getPulsePhase();
+            const prevPulsePhase = ecgGen.getPrevPulsePhase();
             const sysFactor = ecgGen.getSysFactor();
-            const spo2Amplitude = Math.max(0, vitals.spO2 / 100) * sysFactor;
-            const spo2Sample = Waveforms.spo2Pleth(phase) * spo2Amplitude;
-            pushSample(waveformState.spo2, spo2Sample);
 
-            // ABP — use base sys/dia for waveform shape (consistent normalization),
-            // then scale amplitude by smoothed Frank-Starling factor:
-            // shorter preceding R-R = smaller pulse, longer = taller pulse
-            const abpBase = Waveforms.abpWaveform(phase, vitals.systolicBP, vitals.diastolicBP);
-            const abpSample = abpBase * sysFactor;
-            pushSample(waveformState.abp, abpSample);
+            // SpO2 pleth — max of current and previous beat's decay
+            // ensures smooth continuity across beat boundaries
+            const spo2Amplitude = Math.max(0, vitals.spO2 / 100) * sysFactor;
+            const spo2Current = Waveforms.spo2Pleth(pulsePhase) * spo2Amplitude;
+            const spo2Prev = Waveforms.spo2Pleth(prevPulsePhase) * spo2Amplitude;
+            pushSample(waveformState.spo2, Math.max(spo2Current, spo2Prev));
+
+            // ABP — previous beat's tail provides diastolic decay bridge
+            const abpCurrent = Waveforms.abpWaveform(pulsePhase, vitals.systolicBP, vitals.diastolicBP) * sysFactor;
+            const abpPrev = Waveforms.abpWaveform(prevPulsePhase, vitals.systolicBP, vitals.diastolicBP) * sysFactor;
+            pushSample(waveformState.abp, Math.max(abpCurrent, abpPrev));
         }
 
         // Respiration phase (stops if RR is 0)
@@ -235,7 +237,10 @@ function pushSample(state, value) {
     state.writePos = (state.writePos + 1) % state.buffer.length;
 }
 
+let monitorPaused = false;
+
 function animate(timestamp) {
+    if (monitorPaused) return;
     if (lastTimestamp === 0) lastTimestamp = timestamp;
     const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.05);
     lastTimestamp = timestamp;
@@ -352,6 +357,16 @@ connection.on("RhythmChanged", (rhythm) => {
 
 connection.on("AlarmTriggered", (type) => {
     showAlarm(type);
+});
+
+connection.on("MonitorPaused", () => {
+    monitorPaused = true;
+});
+
+connection.on("MonitorResumed", () => {
+    monitorPaused = false;
+    lastTimestamp = 0; // reset so we don't get a huge dt jump
+    requestAnimationFrame(animate);
 });
 
 connection.on("Error", (msg) => {

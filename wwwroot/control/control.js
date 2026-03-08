@@ -6,6 +6,7 @@ const connection = new signalR.HubConnectionBuilder()
 
 let sessionCode = null;
 let sendTimeout = null;
+let isPaused = false;
 
 const currentVitals = {
     heartRate: 72, spO2: 98, systolicBP: 120, diastolicBP: 80,
@@ -308,6 +309,22 @@ function copyMonitorURL() {
     document.body.removeChild(textarea);
     btn.textContent = 'Copied!';
     setTimeout(() => { btn.textContent = 'Copy Monitor URL'; }, 2000);
+}
+
+// Pause/Resume monitor
+function togglePause() {
+    if (!sessionCode) return;
+    isPaused = !isPaused;
+    const btn = document.getElementById('pauseBtn');
+    if (isPaused) {
+        connection.invoke("PauseMonitor", sessionCode);
+        btn.textContent = 'Resume';
+        btn.classList.add('paused');
+    } else {
+        connection.invoke("ResumeMonitor", sessionCode);
+        btn.textContent = 'Pause';
+        btn.classList.remove('paused');
+    }
 }
 
 // Auto-join if session code is in URL query string
