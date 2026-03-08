@@ -9,7 +9,8 @@ let sendTimeout = null;
 
 const currentVitals = {
     heartRate: 72, spO2: 98, systolicBP: 120, diastolicBP: 80,
-    respiratoryRate: 16, temperature: 36.8, etCO2: 38, rhythm: 'nsr'
+    respiratoryRate: 16, temperature: 36.8, etCO2: 38, rhythm: 'nsr',
+    irregularity: 0
 };
 
 // SignalR events
@@ -44,9 +45,11 @@ function applyFromServer(v) {
     currentVitals.temperature = v.temperature;
     currentVitals.etCO2 = v.etCO2;
     currentVitals.rhythm = v.rhythm;
+    currentVitals.irregularity = v.irregularity || 0;
 
     // Sync sliders
     document.getElementById('hrSlider').value = v.heartRate;
+    document.getElementById('irregularitySlider').value = v.irregularity || 0;
     document.getElementById('spo2Slider').value = v.spO2;
     document.getElementById('sysSlider').value = v.systolicBP;
     document.getElementById('diaSlider').value = v.diastolicBP;
@@ -60,6 +63,7 @@ function applyFromServer(v) {
 
 function updateAllDisplays() {
     document.getElementById('hrDisplay').textContent = currentVitals.heartRate + ' bpm';
+    document.getElementById('irregularityDisplay').textContent = currentVitals.irregularity + '%';
     document.getElementById('spo2Display').textContent = currentVitals.spO2 + '%';
     document.getElementById('bpDisplay').textContent = currentVitals.systolicBP + '/' + currentVitals.diastolicBP;
     document.getElementById('rrDisplay').textContent = currentVitals.respiratoryRate + ' /min';
@@ -94,13 +98,23 @@ function updateSlider(type) {
             currentVitals.heartRate = parseInt(document.getElementById('hrSlider').value);
             document.getElementById('hrDisplay').textContent = currentVitals.heartRate + ' bpm';
             break;
+        case 'irregularity':
+            currentVitals.irregularity = parseInt(document.getElementById('irregularitySlider').value);
+            document.getElementById('irregularityDisplay').textContent = currentVitals.irregularity + '%';
+            break;
         case 'spo2':
             currentVitals.spO2 = parseInt(document.getElementById('spo2Slider').value);
             document.getElementById('spo2Display').textContent = currentVitals.spO2 + '%';
             break;
         case 'bp':
-            currentVitals.systolicBP = parseInt(document.getElementById('sysSlider').value);
-            currentVitals.diastolicBP = parseInt(document.getElementById('diaSlider').value);
+            let sys = parseInt(document.getElementById('sysSlider').value);
+            let dia = parseInt(document.getElementById('diaSlider').value);
+            if (sys <= dia) {
+                sys = dia + 1;
+                document.getElementById('sysSlider').value = sys;
+            }
+            currentVitals.systolicBP = sys;
+            currentVitals.diastolicBP = dia;
             document.getElementById('bpDisplay').textContent = currentVitals.systolicBP + '/' + currentVitals.diastolicBP;
             break;
         case 'rr':
@@ -135,6 +149,7 @@ function setSpO2(val) {
 }
 
 function setBP(sys, dia) {
+    if (sys <= dia) sys = dia + 1;
     currentVitals.systolicBP = sys;
     currentVitals.diastolicBP = dia;
     document.getElementById('sysSlider').value = sys;
@@ -236,9 +251,11 @@ function scenario(name) {
     if (!s) return;
 
     Object.assign(currentVitals, s);
+    currentVitals.irregularity = s.irregularity || 0;
 
     // Sync all sliders
     document.getElementById('hrSlider').value = s.heartRate;
+    document.getElementById('irregularitySlider').value = currentVitals.irregularity;
     document.getElementById('spo2Slider').value = s.spO2;
     document.getElementById('sysSlider').value = s.systolicBP;
     document.getElementById('diaSlider').value = s.diastolicBP;

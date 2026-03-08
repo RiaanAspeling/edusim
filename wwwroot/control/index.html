@@ -38,6 +38,12 @@
                 </div>
                 <input type="range" id="hrSlider" min="20" max="300" value="72"
                     oninput="updateSlider('hr')">
+                <div class="dual-slider">
+                    <label class="sub-label">Irregularity</label>
+                    <input type="range" id="irregularitySlider" min="0" max="50" value="0"
+                        oninput="updateSlider('irregularity')">
+                    <span class="control-value" id="irregularityDisplay" style="font-size:12px;">0%</span>
+                </div>
                 <div class="preset-row">
                     <button onclick="setHR(40)">Brady 40</button>
                     <button onclick="setHR(72)">Normal 72</button>

@@ -10,4 +10,5 @@ public class VitalSigns
     public double Temperature { get; set; } = 36.8;
     public int EtCO2 { get; set; } = 38;
     public string Rhythm { get; set; } = "nsr";
+    public int Irregularity { get; set; } = 0;
 }

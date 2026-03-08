@@ -7,7 +7,8 @@ const connection = new signalR.HubConnectionBuilder()
 let sessionCode = null;
 let vitals = {
     heartRate: 72, spO2: 98, systolicBP: 120, diastolicBP: 80,
-    respiratoryRate: 16, temperature: 36.8, etCO2: 38, rhythm: 'nsr'
+    respiratoryRate: 16, temperature: 36.8, etCO2: 38, rhythm: 'nsr',
+    irregularity: 0
 };
 
 // Smooth transition targets
@@ -171,11 +172,15 @@ function generateSamples(dt) {
 
     ecgGen.setHeartRate(vitals.heartRate);
     ecgGen.setRhythm(vitals.rhythm);
+    ecgGen.setIrregularity(vitals.irregularity);
 
     for (let i = 0; i < samplesToGen; i++) {
         // ECG
         const ecgSample = ecgGen.nextSample(sampleDt);
         pushSample(waveformState.ecg, ecgSample);
+
+        // Update smoothed Frank-Starling BP factor
+        ecgGen.updateBPFactor(sampleDt);
 
         // Heart beep on R-wave detection (no beep during V-Fib/Asystole)
         const phase = ecgGen.getPhase();
@@ -192,14 +197,18 @@ function generateSamples(dt) {
             const abpSample = 0.02 * (Math.random() - 0.5);
             pushSample(waveformState.abp, abpSample);
         } else {
-            // SpO2 pleth (synced to heart rate, amplitude scales linearly with SpO2 %)
-            const spo2Amplitude = Math.max(0, vitals.spO2 / 100);
+            // SpO2 pleth (synced to heart rate, amplitude scales with SpO2 %
+            // and stroke volume — shorter R-R = smaller pulse)
+            const sysFactor = ecgGen.getSysFactor();
+            const spo2Amplitude = Math.max(0, vitals.spO2 / 100) * sysFactor;
             const spo2Sample = Waveforms.spo2Pleth(phase) * spo2Amplitude;
             pushSample(waveformState.spo2, spo2Sample);
 
-            // ABP (amplitude reflects BP values)
-            const bpScale = Math.max(0, vitals.systolicBP / 120);
-            const abpSample = Waveforms.abpWaveform(phase, vitals.systolicBP, vitals.diastolicBP) * Math.min(bpScale, 1);
+            // ABP — use base sys/dia for waveform shape (consistent normalization),
+            // then scale amplitude by smoothed Frank-Starling factor:
+            // shorter preceding R-R = smaller pulse, longer = taller pulse
+            const abpBase = Waveforms.abpWaveform(phase, vitals.systolicBP, vitals.diastolicBP);
+            const abpSample = abpBase * sysFactor;
             pushSample(waveformState.abp, abpSample);
         }
 
@@ -357,6 +366,8 @@ function applyVitals(v) {
     targetVitals.respiratoryRate = v.respiratoryRate;
     targetVitals.temperature = v.temperature;
     targetVitals.etCO2 = v.etCO2;
+    vitals.irregularity = v.irregularity || 0;
+    targetVitals.irregularity = v.irregularity || 0;
     if (v.rhythm) {
         vitals.rhythm = v.rhythm;
         targetVitals.rhythm = v.rhythm;

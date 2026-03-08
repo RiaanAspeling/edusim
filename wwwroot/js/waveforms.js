@@ -91,8 +91,28 @@ const Waveforms = {
         const c1 = 0.28;
         const w1 = phase < c1 ? 0.04 : 0.11;
         const g1 = Math.exp(-Math.pow((phase - c1) / w1, 2));
-        // G2: Dicrotic wave (small bump after notch)
-        const g2 = 0.20 * Math.exp(-Math.pow((phase - 0.58) / 0.06, 2));
+        // G2: Dicrotic notch/wave — position and amplitude vary with pulse pressure
+        // and vascular tone (indicated by diastolic BP level)
+        // Normal pulse pressure ~40 mmHg: notch sits midway between systole/diastole
+        // Wide pulse pressure (>40): notch drops towards diastole
+        // Narrow pulse pressure (<40): notch rises towards systole
+        // Low diastolic (vasodilation): notch drops further towards diastole
+        const pp = Math.max(range, 1);
+        const normalPP = 40;
+        // Ratio: <1 = narrow PP (notch higher), >1 = wide PP (notch lower)
+        const ppRatio = pp / normalPP;
+        // Vasodilation factor: low diastolic (<70) pushes notch lower and later
+        // Normal diastolic ~80: factor = 0, low diastolic 40: factor = 1
+        const vasodilationFactor = Math.max(0, Math.min(1, (70 - diastolic) / 30));
+        // Notch amplitude: lower when wide PP or vasodilated, higher when narrow PP
+        // Clamp between 0.05 (nearly invisible) and 0.45 (prominent)
+        const baseAmp = 0.20 / ppRatio;
+        const notchAmp = Math.min(0.45, Math.max(0.05, baseAmp * (1 - 0.6 * vasodilationFactor)));
+        // Notch phase position: shifts earlier (towards systole) when narrow,
+        // later (towards diastole) when wide or vasodilated
+        const baseCenter = 0.52 + 0.06 * ppRatio;
+        const notchCenter = Math.min(0.75, Math.max(0.48, baseCenter + 0.10 * vasodilationFactor));
+        const g2 = notchAmp * Math.exp(-Math.pow((phase - notchCenter) / 0.06, 2));
         // G3: Broad diastolic base (sustains pressure through diastole)
         const g3 = 0.25 * Math.exp(-Math.pow((phase - 0.48) / 0.22, 2));
 
@@ -153,6 +173,13 @@ class ECGGenerator {
         this.currentBeatDuration = 60.0 / this.heartRate;
         this.beatElapsed = 0;
         this.vtachBaseHR = 290;
+        // Track previous R-R interval for Frank-Starling BP variation
+        this.prevBeatDuration = this.currentBeatDuration;
+        this.beatJustStarted = false;
+        // Smoothed BP factor (avoids abrupt jumps at beat boundaries)
+        this.currentSysFactor = 1.0;
+        // Irregularity: 0–50, percentage of R-R variation
+        this.irregularity = 0;
     }
 
     setRhythm(rhythm) {
@@ -167,6 +194,10 @@ class ECGGenerator {
         this.heartRate = hr;
     }
 
+    setIrregularity(pct) {
+        this.irregularity = pct;
+    }
+
     nextSample(dt) {
         this.time += dt;
         this.beatElapsed += dt;
@@ -177,11 +208,17 @@ class ECGGenerator {
         if (this.rhythm === 'vtach') {
             effectiveHR = this.vtachBaseHR;
         }
-        if (this.rhythm !== 'afib' && this.rhythm !== 'vtach') {
+        // For regular rhythms (no irregularity, not afib/vtach),
+        // update beat duration continuously so HR changes take effect immediately
+        if (this.rhythm !== 'afib' && this.rhythm !== 'vtach' && this.irregularity === 0) {
             this.currentBeatDuration = 60.0 / effectiveHR;
         }
 
+        this.beatJustStarted = false;
         if (this.beatElapsed >= this.currentBeatDuration) {
+            // Save the R-R interval of the beat that just ended
+            this.prevBeatDuration = this.currentBeatDuration;
+            this.beatJustStarted = true;
             this.beatElapsed = this.beatElapsed % this.currentBeatDuration;
             if (this.rhythm === 'afib') {
                 const base = 60.0 / effectiveHR;
@@ -190,19 +227,28 @@ class ECGGenerator {
                 // V-Tach: fluctuate within 0-5 bpm of base rate
                 const vtachHR = this.vtachBaseHR + Math.random() * 5;
                 this.currentBeatDuration = 60.0 / vtachHR;
+            } else if (this.irregularity > 0) {
+                // Apply irregularity: vary R-R by ±irregularity%
+                const base = 60.0 / effectiveHR;
+                const variation = this.irregularity / 100;
+                this.currentBeatDuration = base * (1 - variation + Math.random() * 2 * variation);
             }
         }
 
         // beatElapsed is absolute time in seconds within the current beat
         const t = this.beatElapsed;
+        // At high HR the beat duration is shorter than the PQRST span,
+        // so the T wave tail from the previous beat bleeds into the next.
+        // Use prevBeatDuration since the tail belongs to the previous beat.
+        const tPrev = t + this.prevBeatDuration;
 
         switch (this.rhythm) {
-            case 'nsr': return Waveforms.ecgNormal(t);
-            case 'afib': return Waveforms.ecgAFib(t, this.time);
+            case 'nsr': return Waveforms.ecgNormal(t) + Waveforms.ecgNormal(tPrev);
+            case 'afib': return Waveforms.ecgAFib(t, this.time) + Waveforms.ecgAFib(tPrev, this.time);
             case 'vtach': return Waveforms.ecgVTach(t);
             case 'vfib': return Waveforms.ecgVFib(this.time);
             case 'asystole': return Waveforms.ecgAsystole(this.time);
-            default: return Waveforms.ecgNormal(t);
+            default: return Waveforms.ecgNormal(t) + Waveforms.ecgNormal(tPrev);
         }
     }
 
@@ -220,5 +266,24 @@ class ECGGenerator {
     // Returns true if current rhythm has no effective cardiac output
     hasNoOutput() {
         return this.rhythm === 'vfib' || this.rhythm === 'asystole';
+    }
+
+    // Frank-Starling BP adjustment based on preceding R-R interval.
+    // Longer pause before a beat = more filling = higher SBP, lower DBP.
+    // Shorter pause = less filling = lower SBP, higher DBP.
+    // The factor is smoothly interpolated to avoid abrupt jumps at beat boundaries.
+    // Returns { sysFactor } as a multiplier around 1.0.
+    updateBPFactor(dt) {
+        const normalDuration = 60.0 / Math.max(this.heartRate, 1);
+        const rrRatio = this.prevBeatDuration / normalDuration;
+        const deviation = (rrRatio - 1.0) * 0.20;
+        const targetFactor = 1.0 + deviation;
+        // Smooth towards target — fast enough to settle within ~0.1s
+        const smoothing = 1.0 - Math.exp(-dt * 30);
+        this.currentSysFactor += (targetFactor - this.currentSysFactor) * smoothing;
+    }
+
+    getSysFactor() {
+        return this.currentSysFactor;
     }
 }
