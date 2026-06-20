@@ -37,7 +37,7 @@
             <div class="control-group">
                 <div class="control-header">
                     <label>Heart Rate</label>
-                    <span class="control-value" id="hrDisplay">72 bpm</span>
+                    <span class="control-value"><input type="text" class="control-input" id="hrInput" value="72" onchange="manualInput('hr')" onkeydown="if(event.key==='Enter')this.blur()"><span class="unit">bpm</span></span>
                 </div>
                 <input type="range" id="hrSlider" min="20" max="300" value="72"
                     oninput="updateSlider('hr')">
@@ -45,7 +45,7 @@
                     <label class="sub-label">Irregularity</label>
                     <input type="range" id="irregularitySlider" min="0" max="50" value="0"
                         oninput="updateSlider('irregularity')">
-                    <span class="control-value" id="irregularityDisplay" style="font-size:12px;">0%</span>
+                    <span class="control-value" style="font-size:12px;"><input type="text" class="control-input" id="irregularityInput" value="0" style="width:3ch;" onchange="manualInput('irregularity')" onkeydown="if(event.key==='Enter')this.blur()"><span class="unit">%</span></span>
                 </div>
                 <div class="preset-row">
                     <button onclick="setHR(40)">Brady 40</button>
@@ -74,7 +74,7 @@
             <div class="control-group">
                 <div class="control-header">
                     <label>SpO2</label>
-                    <span class="control-value" id="spo2Display">98%</span>
+                    <span class="control-value"><input type="text" class="control-input" id="spo2Input" value="98" onchange="manualInput('spo2')" onkeydown="if(event.key==='Enter')this.blur()"><span class="unit">%</span></span>
                 </div>
                 <input type="range" id="spo2Slider" min="0" max="100" value="98"
                     oninput="updateSlider('spo2')">
@@ -90,7 +90,7 @@
             <div class="control-group">
                 <div class="control-header">
                     <label>Blood Pressure</label>
-                    <span class="control-value" id="bpDisplay">120/80</span>
+                    <span class="control-value"><input type="text" class="control-input" id="bpInput" value="120/80" style="width:7ch;" onchange="manualInput('bp')" onkeydown="if(event.key==='Enter')this.blur()"></span>
                 </div>
                 <div class="dual-slider">
                     <label class="sub-label">Systolic</label>
@@ -112,7 +112,7 @@
             <div class="control-group">
                 <div class="control-header">
                     <label>Respiratory Rate</label>
-                    <span class="control-value" id="rrDisplay">16 /min</span>
+                    <span class="control-value"><input type="text" class="control-input" id="rrInput" value="16" onchange="manualInput('rr')" onkeydown="if(event.key==='Enter')this.blur()"><span class="unit">/min</span></span>
                 </div>
                 <input type="range" id="rrSlider" min="0" max="40" value="16"
                     oninput="updateSlider('rr')">
@@ -128,7 +128,7 @@
             <div class="control-group">
                 <div class="control-header">
                     <label>EtCO2</label>
-                    <span class="control-value" id="etco2Display">38 mmHg</span>
+                    <span class="control-value"><input type="text" class="control-input" id="etco2Input" value="38" onchange="manualInput('etco2')" onkeydown="if(event.key==='Enter')this.blur()"><span class="unit">mmHg</span></span>
                 </div>
                 <input type="range" id="etco2Slider" min="0" max="80" value="38"
                     oninput="updateSlider('etco2')">
@@ -144,7 +144,7 @@
             <div class="control-group">
                 <div class="control-header">
                     <label>Temperature</label>
-                    <span class="control-value" id="tempDisplay">36.8 &deg;C</span>
+                    <span class="control-value"><input type="text" class="control-input" id="tempInput" value="36.8" style="width:5ch;" onchange="manualInput('temp')" onkeydown="if(event.key==='Enter')this.blur()"><span class="unit">&deg;C</span></span>
                 </div>
                 <input type="range" id="tempSlider" min="330" max="420" value="368"
                     oninput="updateSlider('temp')">

@@ -92,6 +92,9 @@ function updateNumerics() {
     document.getElementById('spo2Value').textContent = Math.round(vitals.spO2);
     document.getElementById('bpValue').textContent =
         Math.round(vitals.systolicBP) + '/' + Math.round(vitals.diastolicBP);
+    // MAP = diastolic + (pulse pressure / 3)
+    document.getElementById('mapValue').textContent =
+        Math.round(vitals.diastolicBP + (vitals.systolicBP - vitals.diastolicBP) / 3);
     document.getElementById('rrValue').textContent = Math.round(vitals.respiratoryRate);
     document.getElementById('tempValue').textContent = vitals.temperature.toFixed(1);
     document.getElementById('etco2Value').textContent = Math.round(vitals.etCO2);
@@ -201,9 +204,12 @@ function generateSamples(dt) {
             const prevPulsePhase = ecgGen.getPrevPulsePhase();
             const sysFactor = ecgGen.getSysFactor();
 
-            // SpO2 pleth — max of current and previous beat's decay
-            // ensures smooth continuity across beat boundaries
-            const spo2Amplitude = Math.max(0, vitals.spO2 / 100) * sysFactor;
+            // SpO2 pleth — amplitude scales with pulse pressure because
+            // the plethysmograph measures the same arterial pulsation as ABP
+            // (correlation r=0.85, Shamir et al. 1999). At zero BP, pleth is flat.
+            const pulsePressure = Math.max(0, vitals.systolicBP - vitals.diastolicBP);
+            const ppFactor = Math.min(pulsePressure / 40, 1); // normalize to typical PP of 40mmHg
+            const spo2Amplitude = Math.max(0, vitals.spO2 / 100) * sysFactor * ppFactor;
             const spo2Current = Waveforms.spo2Pleth(pulsePhase) * spo2Amplitude;
             const spo2Prev = Waveforms.spo2Pleth(prevPulsePhase) * spo2Amplitude;
             pushSample(waveformState.spo2, Math.max(spo2Current, spo2Prev));

@@ -260,6 +260,37 @@ body {
     font-weight: bold;
     color: #4fc3f7;
     font-variant-numeric: tabular-nums;
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
+}
+
+.control-input {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: inherit;
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+    width: 4ch;
+    text-align: right;
+    padding: 0 2px;
+    outline: none;
+}
+
+.control-input:hover {
+    border-color: #333;
+}
+
+.control-input:focus {
+    border-color: #4fc3f7;
+    background: #1a1a1a;
+}
+
+.control-value .unit {
+    font-size: 12px;
+    font-weight: normal;
+    color: #888;
 }
 
 .sub-label {

@@ -63,13 +63,13 @@ function applyFromServer(v) {
 }
 
 function updateAllDisplays() {
-    document.getElementById('hrDisplay').textContent = currentVitals.heartRate + ' bpm';
-    document.getElementById('irregularityDisplay').textContent = currentVitals.irregularity + '%';
-    document.getElementById('spo2Display').textContent = currentVitals.spO2 + '%';
-    document.getElementById('bpDisplay').textContent = currentVitals.systolicBP + '/' + currentVitals.diastolicBP;
-    document.getElementById('rrDisplay').textContent = currentVitals.respiratoryRate + ' /min';
-    document.getElementById('etco2Display').textContent = currentVitals.etCO2 + ' mmHg';
-    document.getElementById('tempDisplay').innerHTML = currentVitals.temperature.toFixed(1) + ' &deg;C';
+    document.getElementById('hrInput').value = currentVitals.heartRate;
+    document.getElementById('irregularityInput').value = currentVitals.irregularity;
+    document.getElementById('spo2Input').value = currentVitals.spO2;
+    document.getElementById('bpInput').value = currentVitals.systolicBP + '/' + currentVitals.diastolicBP;
+    document.getElementById('rrInput').value = currentVitals.respiratoryRate;
+    document.getElementById('etco2Input').value = currentVitals.etCO2;
+    document.getElementById('tempInput').value = currentVitals.temperature.toFixed(1);
 }
 
 function updateRhythmButtons(rhythm) {
@@ -97,15 +97,15 @@ function updateSlider(type) {
     switch (type) {
         case 'hr':
             currentVitals.heartRate = parseInt(document.getElementById('hrSlider').value);
-            document.getElementById('hrDisplay').textContent = currentVitals.heartRate + ' bpm';
+            document.getElementById('hrInput').value = currentVitals.heartRate;
             break;
         case 'irregularity':
             currentVitals.irregularity = parseInt(document.getElementById('irregularitySlider').value);
-            document.getElementById('irregularityDisplay').textContent = currentVitals.irregularity + '%';
+            document.getElementById('irregularityInput').value = currentVitals.irregularity;
             break;
         case 'spo2':
             currentVitals.spO2 = parseInt(document.getElementById('spo2Slider').value);
-            document.getElementById('spo2Display').textContent = currentVitals.spO2 + '%';
+            document.getElementById('spo2Input').value = currentVitals.spO2;
             break;
         case 'bp':
             let sys = parseInt(document.getElementById('sysSlider').value);
@@ -116,19 +116,19 @@ function updateSlider(type) {
             }
             currentVitals.systolicBP = sys;
             currentVitals.diastolicBP = dia;
-            document.getElementById('bpDisplay').textContent = currentVitals.systolicBP + '/' + currentVitals.diastolicBP;
+            document.getElementById('bpInput').value = sys + '/' + dia;
             break;
         case 'rr':
             currentVitals.respiratoryRate = parseInt(document.getElementById('rrSlider').value);
-            document.getElementById('rrDisplay').textContent = currentVitals.respiratoryRate + ' /min';
+            document.getElementById('rrInput').value = currentVitals.respiratoryRate;
             break;
         case 'etco2':
             currentVitals.etCO2 = parseInt(document.getElementById('etco2Slider').value);
-            document.getElementById('etco2Display').textContent = currentVitals.etCO2 + ' mmHg';
+            document.getElementById('etco2Input').value = currentVitals.etCO2;
             break;
         case 'temp':
             currentVitals.temperature = parseInt(document.getElementById('tempSlider').value) / 10;
-            document.getElementById('tempDisplay').innerHTML = currentVitals.temperature.toFixed(1) + ' &deg;C';
+            document.getElementById('tempInput').value = currentVitals.temperature.toFixed(1);
             break;
     }
     sendVitals();
@@ -138,14 +138,14 @@ function updateSlider(type) {
 function setHR(val) {
     currentVitals.heartRate = val;
     document.getElementById('hrSlider').value = val;
-    document.getElementById('hrDisplay').textContent = val + ' bpm';
+    document.getElementById('hrInput').value = val;
     sendVitals();
 }
 
 function setSpO2(val) {
     currentVitals.spO2 = val;
     document.getElementById('spo2Slider').value = val;
-    document.getElementById('spo2Display').textContent = val + '%';
+    document.getElementById('spo2Input').value = val;
     sendVitals();
 }
 
@@ -155,29 +155,77 @@ function setBP(sys, dia) {
     currentVitals.diastolicBP = dia;
     document.getElementById('sysSlider').value = sys;
     document.getElementById('diaSlider').value = dia;
-    document.getElementById('bpDisplay').textContent = sys + '/' + dia;
+    document.getElementById('bpInput').value = sys + '/' + dia;
     sendVitals();
 }
 
 function setRR(val) {
     currentVitals.respiratoryRate = val;
     document.getElementById('rrSlider').value = val;
-    document.getElementById('rrDisplay').textContent = val + ' /min';
+    document.getElementById('rrInput').value = val;
     sendVitals();
 }
 
 function setEtCO2(val) {
     currentVitals.etCO2 = val;
     document.getElementById('etco2Slider').value = val;
-    document.getElementById('etco2Display').textContent = val + ' mmHg';
+    document.getElementById('etco2Input').value = val;
     sendVitals();
 }
 
 function setTemp(val) {
     currentVitals.temperature = val;
     document.getElementById('tempSlider').value = Math.round(val * 10);
-    document.getElementById('tempDisplay').innerHTML = val.toFixed(1) + ' &deg;C';
+    document.getElementById('tempInput').value = val.toFixed(1);
     sendVitals();
+}
+
+// Manual numeric input handler
+function manualInput(type) {
+    switch (type) {
+        case 'hr': {
+            const val = Math.max(20, Math.min(300, parseInt(document.getElementById('hrInput').value) || 72));
+            setHR(val);
+            break;
+        }
+        case 'irregularity': {
+            const val = Math.max(0, Math.min(50, parseInt(document.getElementById('irregularityInput').value) || 0));
+            currentVitals.irregularity = val;
+            document.getElementById('irregularitySlider').value = val;
+            document.getElementById('irregularityInput').value = val;
+            sendVitals();
+            break;
+        }
+        case 'spo2': {
+            const val = Math.max(0, Math.min(100, parseInt(document.getElementById('spo2Input').value) || 98));
+            setSpO2(val);
+            break;
+        }
+        case 'bp': {
+            const parts = document.getElementById('bpInput').value.split('/');
+            if (parts.length === 2) {
+                const sys = Math.max(0, Math.min(250, parseInt(parts[0]) || 120));
+                const dia = Math.max(0, Math.min(150, parseInt(parts[1]) || 80));
+                setBP(sys, dia);
+            }
+            break;
+        }
+        case 'rr': {
+            const val = Math.max(0, Math.min(40, parseInt(document.getElementById('rrInput').value) || 16));
+            setRR(val);
+            break;
+        }
+        case 'etco2': {
+            const val = Math.max(0, Math.min(80, parseInt(document.getElementById('etco2Input').value) || 38));
+            setEtCO2(val);
+            break;
+        }
+        case 'temp': {
+            const val = Math.max(33.0, Math.min(42.0, parseFloat(document.getElementById('tempInput').value) || 36.8));
+            setTemp(val);
+            break;
+        }
+    }
 }
 
 // Vital overrides applied automatically when certain rhythms are selected
@@ -277,7 +325,11 @@ function scenario(name) {
 // Session management
 async function createSession() {
     document.getElementById('setupError').textContent = '';
-    await connection.invoke("CreateSession");
+    try {
+        await connection.invoke("CreateSession");
+    } catch (err) {
+        document.getElementById('setupError').textContent = 'Connection error: ' + err.message;
+    }
 }
 
 async function joinExisting() {
@@ -287,7 +339,11 @@ async function joinExisting() {
         return;
     }
     document.getElementById('setupError').textContent = '';
-    await connection.invoke("JoinSession", code);
+    try {
+        await connection.invoke("JoinSession", code);
+    } catch (err) {
+        document.getElementById('setupError').textContent = 'Connection error: ' + err.message;
+    }
 }
 
 document.getElementById('joinCodeInput').addEventListener('keyup', (e) => {

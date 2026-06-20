@@ -80,43 +80,56 @@ const Waveforms = {
         return val + notch;
     },
 
-    // Arterial blood pressure waveform (phase-based, scales with HR)
-    // Matches textbook ABP: steep upstroke, sharp systolic peak, dicrotic notch
-    // Waveform oscillates between diastolic and systolic (never drops to zero)
+    // Arterial blood pressure waveform — two-wave model
+    // Based on nurse's decomposition: the ABP waveform is the sum of
+    // two independent waves whose peak separation varies with vascular tone:
+    //   Wave 1 (systolic ejection): steep rise, moderate fall
+    //   Wave 2 (reflected/dicrotic): smaller wave that MOVES relative to wave 1
+    // Close together (vasoconstriction) → waves merge → broad peak, notch at top
+    // Moderate gap (normal) → visible dip between → classic dicrotic notch
+    // Far apart (vasodilation) → sharp peak, tiny bump near baseline
     abpWaveform(phase, systolic, diastolic) {
         const range = systolic - diastolic;
-        // Sum of Gaussian model (Liu et al., BioMed Research Int., 2014)
-        // G1: Systolic peak (skewed — steep upstroke, gentler descent)
-        // Offset forward so ABP peaks after ECG R-wave (~0.1s physiological delay)
-        const c1 = 0.28;
-        const w1 = phase < c1 ? 0.04 : 0.11;
-        const g1 = Math.exp(-Math.pow((phase - c1) / w1, 2));
-        // G2: Dicrotic notch/wave — position and amplitude vary with pulse pressure
-        // and vascular tone (indicated by diastolic BP level)
-        // Normal pulse pressure ~40 mmHg: notch sits midway between systole/diastole
-        // Wide pulse pressure (>40): notch drops towards diastole
-        // Narrow pulse pressure (<40): notch rises towards systole
-        // Low diastolic (vasodilation): notch drops further towards diastole
         const pp = Math.max(range, 1);
-        const normalPP = 40;
-        // Ratio: <1 = narrow PP (notch higher), >1 = wide PP (notch lower)
-        const ppRatio = pp / normalPP;
-        // Vasodilation factor: low diastolic (<70) pushes notch lower and later
-        // Normal diastolic ~80: factor = 0, low diastolic 40: factor = 1
-        const vasodilationFactor = Math.max(0, Math.min(1, (70 - diastolic) / 30));
-        // Notch amplitude: lower when wide PP or vasodilated, higher when narrow PP
-        // Clamp between 0.05 (nearly invisible) and 0.45 (prominent)
-        const baseAmp = 0.20 / ppRatio;
-        const notchAmp = Math.min(0.45, Math.max(0.05, baseAmp * (1 - 0.6 * vasodilationFactor)));
-        // Notch phase position: shifts earlier (towards systole) when narrow,
-        // later (towards diastole) when wide or vasodilated
-        const baseCenter = 0.52 + 0.06 * ppRatio;
-        const notchCenter = Math.min(0.75, Math.max(0.48, baseCenter + 0.10 * vasodilationFactor));
-        const g2 = notchAmp * Math.exp(-Math.pow((phase - notchCenter) / 0.06, 2));
-        // G3: Broad diastolic base (sustains pressure through diastole)
-        const g3 = 0.25 * Math.exp(-Math.pow((phase - 0.48) / 0.22, 2));
+        const ppRatio = pp / 40;
 
-        const shape = (g1 + g2 + g3) / 1.08;
+        // Vascular tone from diastolic (SVR indicator):
+        // Positive vascTone = vasodilation (low diastolic)
+        // Negative vascTone = vasoconstriction (high diastolic)
+        const vascTone = Math.max(-1, Math.min(1, (80 - diastolic) / 40));
+
+        // Wave 1: systolic ejection wave (steep rise, fixed descent width)
+        // w1Right is constant — ejection time doesn't change with vascular tone;
+        // the "sustained pressure" in vasoconstriction comes from wave2 (reflected)
+        const c1 = 0.28;
+        const w1Right = 0.10;
+        const w1 = phase < c1 ? 0.04 : w1Right;
+        const wave1 = Math.exp(-Math.pow((phase - c1) / w1, 2));
+
+        // Wave 2: reflected/dicrotic wave (Wang et al., PLOS ONE 2014)
+        // Separation scales gently; amplitude scales asymmetrically —
+        // grows steeply in vasoconstriction (high SVR → large reflected wave
+        // → "high dicrotic notch"), shrinks gently in vasodilation.
+        const separation = 0.22 + vascTone * 0.06;
+        const c2 = c1 + separation;
+        const w2 = 0.07;
+        const vcBoost = Math.max(0, -vascTone);
+        const vdReduce = Math.max(0, vascTone);
+        const amp2 = 0.22 * (1 + 1.2 * vcBoost - 0.5 * vdReduce);
+        const wave2 = amp2 * Math.exp(-Math.pow((phase - c2) / w2, 2));
+
+        // Dicrotic notch — aortic valve closure creates a brief dip
+        // between the two wave peaks; slides with their separation
+        const notchCenter = c1 + separation * 0.55;
+        const notchWidth = 0.03;
+        const notchAmp = 0.08;
+        const notch = notchAmp * Math.exp(-Math.pow((phase - notchCenter) / notchWidth, 2));
+
+        // Diastolic base — scales inversely with PP (faster runoff at wide PP)
+        const g3Amp = 0.15 / Math.max(ppRatio, 0.75);
+        const g3 = g3Amp * Math.exp(-Math.pow((phase - 0.48) / 0.22, 2));
+
+        const shape = (wave1 + wave2 - notch + g3) / 1.08;
         const val = diastolic + range * shape;
         return (val - diastolic + 10) / (range + 20);
     },

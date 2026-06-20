@@ -135,7 +135,7 @@ body {
 }
 
 .numeric-box {
-    width: 140px;
+    width: 160px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -159,6 +159,22 @@ body {
 .numeric-unit {
     font-size: 12px;
     opacity: 0.5;
+}
+
+.numeric-map {
+    font-size: 22px;
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.85;
+    line-height: 1.2;
+    margin-top: 2px;
+}
+
+.numeric-map-label {
+    font-size: 11px;
+    font-weight: normal;
+    opacity: 0.6;
+    margin-left: 4px;
 }
 
 /* Colors matching industry standards */
