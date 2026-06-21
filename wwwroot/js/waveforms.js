@@ -134,6 +134,43 @@ const Waveforms = {
         return (val - diastolic + 10) / (range + 20);
     },
 
+    // Central venous pressure (CVP) complex — deviations around the mean.
+    // Locked to the cardiac electrical cycle like the ECG (function of
+    // absolute time-in-beat in seconds), so each wave tracks its ECG event:
+    //   a wave  — atrial contraction,  follows the P wave  (~0.06s)
+    //   c wave  — tricuspid bulge,     follows the QRS      (~0.16s)
+    //   x descent — systolic RA descent + atrial relaxation (trough)
+    //   v wave  — RA filling vs closed tricuspid, follows the T wave (~0.28s)
+    //   y descent — tricuspid opens, RA empties (shallower trough)
+    // a is the tallest peak; x is the deepest trough (ref: derangedphysiology).
+    // aScale: 0 = absent a wave (AFib), 1 = normal, >1 = cannon a wave.
+    cvpComplex(t, aScale) {
+        let v = 0;
+        v += aScale * 0.22 * Math.exp(-Math.pow((t - 0.11) / 0.040, 2)); // a wave
+        v += 0.12 * Math.exp(-Math.pow((t - 0.21) / 0.032, 2));          // c wave
+        v -= 0.16 * Math.exp(-Math.pow((t - 0.32) / 0.050, 2));          // x descent
+        v += 0.15 * Math.exp(-Math.pow((t - 0.44) / 0.050, 2));          // v wave
+        v -= 0.12 * Math.exp(-Math.pow((t - 0.55) / 0.045, 2));          // y descent
+        return v;
+    },
+
+    // Intracranial pressure (ICP) pulse — one complex per heartbeat (it is the
+    // arterial pulse transmitted into the skull), built on absolute beat-time
+    // like CVP. Three overlapping peaks ride on the systolic upstroke:
+    //   P1 percussion (arterial pulsation) ~0.20s
+    //   P2 tidal (brain compliance)        ~0.33s
+    //   P3 dicrotic (aortic valve closure) ~0.46s
+    // Normal: P1>P2>P3 (descending staircase). As compliance falls P2 rises
+    // above P1 and the peaks merge into a rounded wave. p1/p2/p3 are 0..1.
+    icpComplex(t, p1, p2, p3) {
+        if (t < 0.02 || t > 0.95) return 0;
+        let v = 0;
+        v += p1 * Math.exp(-Math.pow((t - 0.20) / 0.055, 2)); // P1 percussion
+        v += p2 * Math.exp(-Math.pow((t - 0.33) / 0.060, 2)); // P2 tidal
+        v += p3 * Math.exp(-Math.pow((t - 0.46) / 0.060, 2)); // P3 dicrotic
+        return v;
+    },
+
     // Capnography (EtCO2) waveform (phase-based, scales with RR)
     // Normal capnogram: I:E ratio ~1:2 (35% inspiration, 65% expiration)
     // Phase I: inspiratory baseline, Phase II: expiratory upstroke,
@@ -193,6 +230,11 @@ class ECGGenerator {
         this.currentSysFactor = 1.0;
         // Irregularity: 0–50, percentage of R-R variation
         this.irregularity = 0;
+        // Independent atrial clock for CVP — in V-Tach the atria depolarise
+        // independently of the ventricles (AV dissociation), producing
+        // intermittent giant "cannon" a waves.
+        this.atrialElapsed = 0;
+        this.atrialDuration = 60.0 / 75;
     }
 
     setRhythm(rhythm) {
@@ -214,6 +256,12 @@ class ECGGenerator {
     nextSample(dt) {
         this.time += dt;
         this.beatElapsed += dt;
+
+        // Advance the independent atrial clock (used by CVP in V-Tach)
+        this.atrialElapsed += dt;
+        if (this.atrialElapsed >= this.atrialDuration) {
+            this.atrialElapsed -= this.atrialDuration;
+        }
 
         // Always recalculate beat duration so HR changes take effect immediately
         let effectiveHR = Math.max(this.heartRate, 1);
@@ -321,5 +369,41 @@ class ECGGenerator {
 
     getSysFactor() {
         return this.currentSysFactor;
+    }
+
+    // Normalized CVP sample (~0.5 baseline = mean CVP) with rhythm-specific
+    // morphology. Caller flatlines this when hasNoOutput() is true.
+    getCvpSample() {
+        const t = this.beatElapsed;
+        // Previous beat's tail bleeds through at high HR (same as ECG/ABP)
+        const tPrev = t + this.prevBeatDuration;
+
+        if (this.rhythm === 'afib') {
+            // No organised atrial contraction → a wave absent; c/v remain
+            return 0.5 + Waveforms.cvpComplex(t, 0) + Waveforms.cvpComplex(tPrev, 0);
+        }
+
+        if (this.rhythm === 'vtach') {
+            // AV dissociation: ventricular c/v waves at the (fast) ventricular
+            // rate, plus independent atrial a waves. When an atrial contraction
+            // lands during ventricular systole (tricuspid shut) it becomes a
+            // giant cannon a wave; otherwise it is a normal-sized a wave.
+            const inSystole = t > 0.12 && t < 0.34;
+            const aScale = inSystole ? 2.5 : 0.8;
+            const ventricular = Waveforms.cvpComplex(t, 0) + Waveforms.cvpComplex(tPrev, 0);
+            const atrial = aScale * 0.22 * Math.exp(-Math.pow((this.atrialElapsed - 0.11) / 0.040, 2));
+            return 0.5 + ventricular + atrial;
+        }
+
+        // Normal sinus (sinus brady/tachy are just NSR at a different HR)
+        return 0.5 + Waveforms.cvpComplex(t, 1) + Waveforms.cvpComplex(tPrev, 1);
+    }
+
+    // ICP pulse (0 at baseline, positive during systole). p1/p2/p3 are 0..1
+    // peak amplitudes. Previous beat's tail bleeds through at high HR.
+    getIcpSample(p1, p2, p3) {
+        const t = this.beatElapsed;
+        const tPrev = t + this.prevBeatDuration;
+        return Waveforms.icpComplex(t, p1, p2, p3) + Waveforms.icpComplex(tPrev, p1, p2, p3);
     }
 }

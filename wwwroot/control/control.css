@@ -363,6 +363,30 @@ input[type="range"]::-moz-range-thumb {
     cursor: pointer;
 }
 
+.display-toggle {
+    display: flex;
+    gap: 4px;
+    margin: 6px 0;
+}
+
+.dt-btn {
+    flex: 0 0 auto;
+    padding: 3px 14px;
+    font-size: 11px;
+    font-weight: bold;
+    background: #2a2a2a;
+    color: #888;
+    border: 1px solid #444;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.dt-btn.active {
+    background: #4fc3f7;
+    color: #000;
+    border-color: #4fc3f7;
+}
+
 .preset-row button:active {
     background: #3a3a3a;
     border-color: #4fc3f7;

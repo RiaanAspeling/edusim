@@ -23,7 +23,7 @@
         <div class="monitor-grid">
             <!-- Waveform area -->
             <div class="waveform-panel">
-                <div class="waveform-row">
+                <div class="waveform-row" id="ecgRow">
                     <div class="waveform-label ecg-color">II</div>
                     <canvas id="ecgCanvas" class="waveform-canvas"></canvas>
                     <div class="numeric-box ecg-color">
@@ -32,7 +32,7 @@
                         <div class="numeric-unit">bpm</div>
                     </div>
                 </div>
-                <div class="waveform-row">
+                <div class="waveform-row" id="abpRow">
                     <div class="waveform-label abp-color">ABP</div>
                     <canvas id="abpCanvas" class="waveform-canvas"></canvas>
                     <div class="numeric-box abp-color">
@@ -42,7 +42,26 @@
                         <div class="numeric-map">(<span id="mapValue">93</span>)<span class="numeric-map-label">MAP</span></div>
                     </div>
                 </div>
-                <div class="waveform-row">
+                <div class="waveform-row" id="cvpRow">
+                    <div class="waveform-label cvp-color">CVP</div>
+                    <canvas id="cvpCanvas" class="waveform-canvas"></canvas>
+                    <div class="numeric-box cvp-color">
+                        <div class="numeric-label">CVP</div>
+                        <div class="numeric-value" id="cvpValue">5</div>
+                        <div class="numeric-unit">mmHg</div>
+                    </div>
+                </div>
+                <div class="waveform-row" id="icpRow">
+                    <div class="waveform-label icp-color">ICP</div>
+                    <canvas id="icpCanvas" class="waveform-canvas"></canvas>
+                    <div class="numeric-box icp-color">
+                        <div class="numeric-label">ICP</div>
+                        <div class="numeric-value" id="icpValue">10</div>
+                        <div class="numeric-unit">mmHg</div>
+                        <div class="numeric-map">(<span id="cppValue">83</span>)<span class="numeric-map-label">CPP</span></div>
+                    </div>
+                </div>
+                <div class="waveform-row" id="spo2Row">
                     <div class="waveform-label spo2-color">SpO2</div>
                     <canvas id="spo2Canvas" class="waveform-canvas"></canvas>
                     <div class="numeric-box spo2-color">
@@ -51,16 +70,7 @@
                         <div class="numeric-unit">%</div>
                     </div>
                 </div>
-                <div class="waveform-row">
-                    <div class="waveform-label capno-color">CO2</div>
-                    <canvas id="capnoCanvas" class="waveform-canvas"></canvas>
-                    <div class="numeric-box capno-color">
-                        <div class="numeric-label">EtCO2</div>
-                        <div class="numeric-value" id="etco2Value">38</div>
-                        <div class="numeric-unit">mmHg</div>
-                    </div>
-                </div>
-                <div class="waveform-row">
+                <div class="waveform-row" id="respRow">
                     <div class="waveform-label resp-color">Resp</div>
                     <canvas id="respCanvas" class="waveform-canvas"></canvas>
                     <div class="numeric-box resp-color">
@@ -73,10 +83,23 @@
 
             <!-- Bottom bar -->
             <div class="bottom-bar">
-                <div class="temp-display">
-                    <span class="temp-label">Temp</span>
-                    <span class="temp-value" id="tempValue">36.8</span>
-                    <span class="temp-unit">&deg;C</span>
+                <div class="bottom-left">
+                    <div class="min-display ecg-color" id="hrMin" style="display:none;"><span class="min-label">HR</span><span class="min-value" id="hrMinValue">72</span></div>
+                    <div class="min-display abp-color" id="abpMin" style="display:none;"><span class="min-label">ABP</span><span class="min-value" id="bpMinValue">120/80</span><span class="min-sub">(<span id="mapMinValue">93</span>)</span></div>
+                    <div class="min-display cvp-color" id="cvpMin" style="display:none;"><span class="min-label">CVP</span><span class="min-value" id="cvpMinValue">5</span></div>
+                    <div class="min-display icp-color" id="icpMin" style="display:none;"><span class="min-label">ICP</span><span class="min-value" id="icpMinValue">10</span><span class="min-sub">(<span id="cppMinValue">83</span>)</span></div>
+                    <div class="min-display spo2-color" id="spo2Min" style="display:none;"><span class="min-label">SpO2</span><span class="min-value" id="spo2MinValue">98</span></div>
+                    <div class="min-display resp-color" id="rrMin" style="display:none;"><span class="min-label">RR</span><span class="min-value" id="rrMinValue">16</span></div>
+                    <div class="temp-display">
+                        <span class="temp-label">Temp</span>
+                        <span class="temp-value" id="tempValue">36.8</span>
+                        <span class="temp-unit">&deg;C</span>
+                    </div>
+                    <div class="etco2-display">
+                        <span class="etco2-label">EtCO2</span>
+                        <span class="etco2-value" id="etco2Value">38</span>
+                        <span class="etco2-unit">mmHg</span>
+                    </div>
                 </div>
                 <div class="session-info">
                     Session: <span id="sessionCode">---</span>

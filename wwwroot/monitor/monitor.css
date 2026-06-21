@@ -181,7 +181,8 @@ body {
 .ecg-color { color: #00ff41; }
 .spo2-color { color: #00e5ff; }
 .abp-color { color: #ff3333; }
-.capno-color { color: #ffff00; }
+.cvp-color { color: #ffff00; }
+.icp-color { color: #e066ff; }
 .resp-color { color: #ffaa00; }
 
 /* Bottom bar */
@@ -196,8 +197,55 @@ body {
     font-size: 14px;
 }
 
+.bottom-left {
+    display: flex;
+    align-items: baseline;
+    gap: 28px;
+}
+
+.min-display {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+}
+
+.min-label {
+    opacity: 0.6;
+    font-size: 13px;
+}
+
+.min-value {
+    font-size: 24px;
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+}
+
+.min-sub {
+    font-size: 15px;
+    opacity: 0.8;
+}
+
 .temp-display {
     color: #ff8800;
+}
+
+.etco2-display {
+    color: #ffff00;
+}
+
+.etco2-label {
+    opacity: 0.6;
+    margin-right: 6px;
+}
+
+.etco2-value {
+    font-size: 26px;
+    font-weight: bold;
+}
+
+.etco2-unit {
+    opacity: 0.6;
+    margin-left: 2px;
 }
 
 .temp-label {

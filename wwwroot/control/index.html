@@ -39,6 +39,11 @@
                     <label>Heart Rate</label>
                     <span class="control-value"><input type="text" class="control-input" id="hrInput" value="72" onchange="manualInput('hr')" onkeydown="if(event.key==='Enter')this.blur()"><span class="unit">bpm</span></span>
                 </div>
+                <div class="display-toggle" id="hrDisplayToggle">
+                    <button class="dt-btn active" data-mode="on" onclick="setDisplay('hr','on')">On</button>
+                    <button class="dt-btn" data-mode="min" onclick="setDisplay('hr','min')">Min</button>
+                    <button class="dt-btn" data-mode="off" onclick="setDisplay('hr','off')">Off</button>
+                </div>
                 <input type="range" id="hrSlider" min="20" max="300" value="72"
                     oninput="updateSlider('hr')">
                 <div class="dual-slider">
@@ -76,8 +81,19 @@
                     <label>SpO2</label>
                     <span class="control-value"><input type="text" class="control-input" id="spo2Input" value="98" onchange="manualInput('spo2')" onkeydown="if(event.key==='Enter')this.blur()"><span class="unit">%</span></span>
                 </div>
+                <div class="display-toggle" id="spo2DisplayToggle">
+                    <button class="dt-btn active" data-mode="on" onclick="setDisplay('spo2','on')">On</button>
+                    <button class="dt-btn" data-mode="min" onclick="setDisplay('spo2','min')">Min</button>
+                    <button class="dt-btn" data-mode="off" onclick="setDisplay('spo2','off')">Off</button>
+                </div>
                 <input type="range" id="spo2Slider" min="0" max="100" value="98"
                     oninput="updateSlider('spo2')">
+                <div class="dual-slider">
+                    <label class="sub-label">Irregularity</label>
+                    <input type="range" id="spo2IrregularitySlider" min="0" max="10" value="0"
+                        oninput="updateIrregularity('spo2Irregularity')">
+                    <span class="control-value" style="font-size:12px;"><input type="text" class="control-input" id="spo2IrregularityInput" value="0" style="width:3ch;" onchange="manualIrregularity('spo2Irregularity')" onkeydown="if(event.key==='Enter')this.blur()"><span class="unit">%</span></span>
+                </div>
                 <div class="preset-row">
                     <button onclick="setSpO2(70)">Critical 70</button>
                     <button onclick="setSpO2(88)">Low 88</button>
@@ -92,6 +108,11 @@
                     <label>Blood Pressure</label>
                     <span class="control-value"><input type="text" class="control-input" id="bpInput" value="120/80" style="width:7ch;" onchange="manualInput('bp')" onkeydown="if(event.key==='Enter')this.blur()"></span>
                 </div>
+                <div class="display-toggle" id="abpDisplayToggle">
+                    <button class="dt-btn active" data-mode="on" onclick="setDisplay('abp','on')">On</button>
+                    <button class="dt-btn" data-mode="min" onclick="setDisplay('abp','min')">Min</button>
+                    <button class="dt-btn" data-mode="off" onclick="setDisplay('abp','off')">Off</button>
+                </div>
                 <div class="dual-slider">
                     <label class="sub-label">Systolic</label>
                     <input type="range" id="sysSlider" min="0" max="250" value="120"
@@ -99,6 +120,10 @@
                     <label class="sub-label">Diastolic</label>
                     <input type="range" id="diaSlider" min="0" max="150" value="80"
                         oninput="updateSlider('bp')">
+                    <label class="sub-label">Irregularity</label>
+                    <input type="range" id="bpIrregularitySlider" min="0" max="10" value="0"
+                        oninput="updateIrregularity('bpIrregularity')">
+                    <span class="control-value" style="font-size:12px;"><input type="text" class="control-input" id="bpIrregularityInput" value="0" style="width:3ch;" onchange="manualIrregularity('bpIrregularity')" onkeydown="if(event.key==='Enter')this.blur()"><span class="unit">%</span></span>
                 </div>
                 <div class="preset-row">
                     <button onclick="setBP(80,50)">Hypotension</button>
@@ -108,14 +133,95 @@
                 </div>
             </div>
 
+            <!-- CVP -->
+            <div class="control-group">
+                <div class="control-header">
+                    <label>CVP</label>
+                    <span class="control-value"><input type="text" class="control-input" id="cvpInput" value="5" onchange="manualInput('cvp')" onkeydown="if(event.key==='Enter')this.blur()"><span class="unit">mmHg</span></span>
+                </div>
+                <div class="display-toggle" id="cvpDisplayToggle">
+                    <button class="dt-btn active" data-mode="on" onclick="setDisplay('cvp','on')">On</button>
+                    <button class="dt-btn" data-mode="min" onclick="setDisplay('cvp','min')">Min</button>
+                    <button class="dt-btn" data-mode="off" onclick="setDisplay('cvp','off')">Off</button>
+                </div>
+                <input type="range" id="cvpSlider" min="0" max="25" value="5"
+                    oninput="updateSlider('cvp')">
+                <div class="dual-slider">
+                    <label class="sub-label">Irregularity</label>
+                    <input type="range" id="cvpIrregularitySlider" min="0" max="10" value="0"
+                        oninput="updateIrregularity('cvpIrregularity')">
+                    <span class="control-value" style="font-size:12px;"><input type="text" class="control-input" id="cvpIrregularityInput" value="0" style="width:3ch;" onchange="manualIrregularity('cvpIrregularity')" onkeydown="if(event.key==='Enter')this.blur()"><span class="unit">%</span></span>
+                </div>
+                <div class="preset-row">
+                    <button onclick="setCVP(2)">Low 2</button>
+                    <button onclick="setCVP(5)">Normal 5</button>
+                    <button onclick="setCVP(12)">High 12</button>
+                    <button onclick="setCVP(20)">V.High 20</button>
+                </div>
+            </div>
+
+            <!-- ICP -->
+            <div class="control-group">
+                <div class="control-header">
+                    <label>ICP</label>
+                    <span class="control-value"><input type="text" class="control-input" id="icpInput" value="10" onchange="manualInput('icp')" onkeydown="if(event.key==='Enter')this.blur()"><span class="unit">mmHg</span></span>
+                </div>
+                <div class="display-toggle" id="icpDisplayToggle">
+                    <button class="dt-btn active" data-mode="on" onclick="setDisplay('icp','on')">On</button>
+                    <button class="dt-btn" data-mode="min" onclick="setDisplay('icp','min')">Min</button>
+                    <button class="dt-btn" data-mode="off" onclick="setDisplay('icp','off')">Off</button>
+                </div>
+                <input type="range" id="icpSlider" min="0" max="40" value="10"
+                    oninput="updateSlider('icp')">
+                <div class="preset-row">
+                    <button onclick="setICP(10)">Normal 10</button>
+                    <button onclick="setICP(22)">Raised 22</button>
+                    <button onclick="setICP(30)">High 30</button>
+                    <button onclick="setICP(40)">Critical 40</button>
+                </div>
+                <label class="sub-label">Waveform morphology</label>
+                <div class="preset-row">
+                    <button onclick="setIcpMorphology('a')">A Normal</button>
+                    <button onclick="setIcpMorphology('b')">B</button>
+                    <button onclick="setIcpMorphology('c')">C</button>
+                    <button onclick="setIcpMorphology('d')">D Critical</button>
+                </div>
+                <div class="dual-slider">
+                    <label class="sub-label">P1 percussion</label>
+                    <input type="range" id="icpP1Slider" min="0" max="100" value="100"
+                        oninput="updateSlider('icpP1')">
+                    <label class="sub-label">P2 tidal</label>
+                    <input type="range" id="icpP2Slider" min="0" max="100" value="65"
+                        oninput="updateSlider('icpP2')">
+                    <label class="sub-label">P3 dicrotic</label>
+                    <input type="range" id="icpP3Slider" min="0" max="100" value="40"
+                        oninput="updateSlider('icpP3')">
+                    <label class="sub-label">Irregularity</label>
+                    <input type="range" id="icpIrregularitySlider" min="0" max="10" value="0"
+                        oninput="updateIrregularity('icpIrregularity')">
+                    <span class="control-value" style="font-size:12px;"><input type="text" class="control-input" id="icpIrregularityInput" value="0" style="width:3ch;" onchange="manualIrregularity('icpIrregularity')" onkeydown="if(event.key==='Enter')this.blur()"><span class="unit">%</span></span>
+                </div>
+            </div>
+
             <!-- Respiratory Rate -->
             <div class="control-group">
                 <div class="control-header">
                     <label>Respiratory Rate</label>
                     <span class="control-value"><input type="text" class="control-input" id="rrInput" value="16" onchange="manualInput('rr')" onkeydown="if(event.key==='Enter')this.blur()"><span class="unit">/min</span></span>
                 </div>
+                <div class="display-toggle" id="rrDisplayToggle">
+                    <button class="dt-btn active" data-mode="on" onclick="setDisplay('rr','on')">On</button>
+                    <button class="dt-btn" data-mode="min" onclick="setDisplay('rr','min')">Min</button>
+                    <button class="dt-btn" data-mode="off" onclick="setDisplay('rr','off')">Off</button>
+                </div>
                 <input type="range" id="rrSlider" min="0" max="40" value="16"
                     oninput="updateSlider('rr')">
+                <div class="dual-slider">
+                    <label class="sub-label">Irregularity</label>
+                    <input type="range" id="rrIrregularitySlider" min="0" max="10" value="0"
+                        oninput="updateIrregularity('rrIrregularity')">
+                    <span class="control-value" style="font-size:12px;"><input type="text" class="control-input" id="rrIrregularityInput" value="0" style="width:3ch;" onchange="manualIrregularity('rrIrregularity')" onkeydown="if(event.key==='Enter')this.blur()"><span class="unit">%</span></span>
+                </div>
                 <div class="preset-row">
                     <button onclick="setRR(0)">Apnea</button>
                     <button onclick="setRR(8)">Low 8</button>
@@ -132,6 +238,12 @@
                 </div>
                 <input type="range" id="etco2Slider" min="0" max="80" value="38"
                     oninput="updateSlider('etco2')">
+                <div class="dual-slider">
+                    <label class="sub-label">Irregularity</label>
+                    <input type="range" id="etco2IrregularitySlider" min="0" max="10" value="0"
+                        oninput="updateIrregularity('etco2Irregularity')">
+                    <span class="control-value" style="font-size:12px;"><input type="text" class="control-input" id="etco2IrregularityInput" value="0" style="width:3ch;" onchange="manualIrregularity('etco2Irregularity')" onkeydown="if(event.key==='Enter')this.blur()"><span class="unit">%</span></span>
+                </div>
                 <div class="preset-row">
                     <button onclick="setEtCO2(0)">None</button>
                     <button onclick="setEtCO2(20)">Low 20</button>
@@ -148,6 +260,12 @@
                 </div>
                 <input type="range" id="tempSlider" min="330" max="420" value="368"
                     oninput="updateSlider('temp')">
+                <div class="dual-slider">
+                    <label class="sub-label">Irregularity</label>
+                    <input type="range" id="tempIrregularitySlider" min="0" max="10" value="0"
+                        oninput="updateIrregularity('tempIrregularity')">
+                    <span class="control-value" style="font-size:12px;"><input type="text" class="control-input" id="tempIrregularityInput" value="0" style="width:3ch;" onchange="manualIrregularity('tempIrregularity')" onkeydown="if(event.key==='Enter')this.blur()"><span class="unit">%</span></span>
+                </div>
                 <div class="preset-row">
                     <button onclick="setTemp(34.0)">Hypothermia</button>
                     <button onclick="setTemp(36.8)">Normal</button>
