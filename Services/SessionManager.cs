@@ -35,6 +35,12 @@ public class SessionManager
         }
     }
 
+    // Session that a given monitor connection belongs to, if any.
+    public Session? FindByMonitorConnection(string connectionId)
+    {
+        return _sessions.Values.FirstOrDefault(s => s.Monitors.ContainsKey(connectionId));
+    }
+
     public void RemoveSession(string code)
     {
         _sessions.TryRemove(code.ToUpper(), out _);

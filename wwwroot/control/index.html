@@ -30,8 +30,15 @@
                     <button class="copy-btn" onclick="copyMonitorURL()" id="copyBtn">Copy Monitor URL</button>
                 </div>
             </div>
+            <div class="tab-bar" id="tabBar">
+                <button class="tab-btn active" data-tab="controls" onclick="showTab('controls')">Controls</button>
+                <button class="tab-btn" data-tab="alarms" onclick="showTab('alarms')">Alarms<span class="tab-badge" id="alarmTabBadge"></span></button>
+                <button class="tab-btn" data-tab="scenarios" onclick="showTab('scenarios')">Scenarios</button>
+            </div>
         </div>
 
+        <!-- Controls tab: every vital's switches and sliders -->
+        <div class="tab-pane active" id="tab-controls">
         <div class="controls-scroll">
             <!-- Heart Rate -->
             <div class="control-group">
@@ -274,7 +281,26 @@
                 </div>
             </div>
 
-            <!-- Quick Scenarios -->
+        </div>
+        </div>
+
+        <!-- Alarms tab: read-only mirror of each student monitor's limits -->
+        <div class="tab-pane" id="tab-alarms">
+        <div class="controls-scroll single">
+            <div class="control-group alarm-status" id="alarmStatusGroup">
+                <div class="control-header">
+                    <label>Student Alarm Limits</label>
+                    <span class="control-value alarm-status-summary" id="alarmStatusSummary"></span>
+                </div>
+                <div id="alarmMonitors"></div>
+                <p class="hint alarm-hint">Students set their own limits by clicking a reading on the monitor. Alarming readings flash here.</p>
+            </div>
+        </div>
+        </div>
+
+        <!-- Scenarios tab -->
+        <div class="tab-pane" id="tab-scenarios">
+        <div class="controls-scroll single">
             <div class="control-group scenarios">
                 <div class="control-header">
                     <label>Quick Scenarios</label>
@@ -290,6 +316,7 @@
                     <button class="scenario-btn" onclick="scenario('pe')">Pulmonary Embolism</button>
                 </div>
             </div>
+        </div>
         </div>
     </div>
 

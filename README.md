@@ -11,6 +11,7 @@ A web-based patient vital signs monitor simulator for medical and nursing educat
 - **Adjustable vitals** - Heart Rate, SpO2, Blood Pressure, Respiratory Rate, EtCO2, Temperature
 - **Quick scenarios** - Healthy Adult, Sepsis, Acute MI, Cardiac Arrest, Respiratory Failure, Hemorrhage, Anaphylaxis, Pulmonary Embolism
 - **Audio** - heart beep on each QRS complex, alarm tones for critical rhythms
+- **Student alarm limits** - click any reading on the monitor to set high/low limits (shown top-right of the reading); breaches flash and sound until silenced or back in range, and the instructor sees each connected monitor's limits and active alarms on the control panel. Monitors are auto-named "Monitor 1, 2, 3"; click the name in the monitor's bottom bar to rename it
 - **Responsive control panel** - optimized for phone, tablet, and desktop
 
 ## Preview

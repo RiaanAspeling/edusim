@@ -82,17 +82,134 @@ function manualIrregularity(key) {
     sendVitals();
 }
 
+// Tabs: Controls (default) / Alarms / Scenarios. Last-used tab is remembered.
+const TAB_KEY = 'edusim.controlTab';
+
+function showTab(name) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
+    try { localStorage.setItem(TAB_KEY, name); } catch (e) { /* ignore */ }
+}
+
+(function restoreTab() {
+    let name = null;
+    try { name = localStorage.getItem(TAB_KEY); } catch (e) { name = null; }
+    if (name && document.getElementById('tab-' + name)) showTab(name);
+})();
+
+// Student alarm limits — set on each connected monitor, mirrored here
+// read-only, one block per monitor. 'sys' is ABP systolic.
+const alarmChipChannels = [
+    ['hr', 'HR', 0], ['sys', 'Sys BP', 0], ['spo2', 'SpO2', 0], ['rr', 'RR', 0],
+    ['cvp', 'CVP', 0], ['icp', 'ICP', 0], ['etco2', 'EtCO2', 0], ['temp', 'Temp', 1]
+];
+const ALARM_SEP = ' \u2307 ';
+
+function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function renderMonitorChips(status) {
+    const limits = (status && status.limits) || {};
+    const active = (status && status.active) || [];
+    const activeByCh = {};
+    active.forEach(a => { activeByCh[a.channel] = a; });
+    let anySet = false;
+    const html = alarmChipChannels.map(([ch, label, dp]) => {
+        const lim = limits[ch] || { low: null, high: null, enabled: true };
+        const fmt = v => (v === null || v === undefined) ? 'OFF' : Number(v).toFixed(dp);
+        const a = activeByCh[ch];
+        let cls = 'alarm-chip';
+        let range;
+        if (lim.enabled === false) {
+            cls += ' disabled';
+            range = 'ALARM OFF';
+        } else {
+            range = fmt(lim.low) + ALARM_SEP + fmt(lim.high);
+            if (lim.low === null && lim.high === null) cls += ' unset'; else anySet = true;
+        }
+        if (a) {
+            cls += ' alarm';
+            if (a.silenced) cls += ' silenced';
+            range = (a.direction === 'high' ? '\u25b2 ' : '\u25bc ') + range;
+        }
+        return '<div class="' + cls + '"><span class="chip-label">' + label + '</span><span class="chip-range">' + range + '</span></div>';
+    }).join('');
+    return { html, anySet, active };
+}
+
+function renderAlarmStatus(monitors) {
+    monitors = Array.isArray(monitors) ? monitors : [];
+    const container = document.getElementById('alarmMonitors');
+    const summary = document.getElementById('alarmStatusSummary');
+
+    const badge = document.getElementById('alarmTabBadge');
+
+    if (!monitors.length) {
+        container.innerHTML = '<div class="alarm-no-monitor">No student monitor connected</div>';
+        summary.textContent = '';
+        summary.classList.remove('alarm');
+        badge.classList.remove('show');
+        return;
+    }
+
+    let totalActive = 0, totalSilenced = 0, anySet = false;
+    container.innerHTML = monitors.map(m => {
+        const r = renderMonitorChips(m.alarms);
+        anySet = anySet || r.anySet;
+        const silenced = r.active.filter(a => a.silenced).length;
+        totalActive += r.active.length;
+        totalSilenced += silenced;
+        let state, stateCls = 'mon-state';
+        if (r.active.length) {
+            state = r.active.length + ' alarm' + (r.active.length > 1 ? 's' : '') +
+                (silenced ? ' (' + silenced + ' silenced)' : '');
+            stateCls += ' alarm';
+        } else {
+            state = r.anySet ? 'within limits' : 'no limits set';
+        }
+        return '<div class="alarm-monitor">' +
+            '<div class="alarm-monitor-name"><span>' + escapeHtml(m.name) + '</span><span class="' + stateCls + '">' + state + '</span></div>' +
+            '<div class="alarm-chip-grid">' + r.html + '</div></div>';
+    }).join('');
+
+    // Badge on the Alarms tab so alarms are noticed from any tab
+    badge.textContent = totalActive;
+    badge.classList.toggle('show', totalActive > 0);
+
+    if (totalActive) {
+        summary.textContent = totalActive + ' alarm' + (totalActive > 1 ? 's' : '') +
+            (totalSilenced ? ' (' + totalSilenced + ' silenced)' : '');
+        summary.classList.add('alarm');
+    } else {
+        summary.textContent = monitors.length + ' monitor' + (monitors.length > 1 ? 's' : '') +
+            (anySet ? ', all within limits' : '');
+        summary.classList.remove('alarm');
+    }
+}
+
 // SignalR events
-connection.on("SessionCreated", (code, vitals) => {
+connection.on("SessionCreated", (code, vitals, monitors) => {
     sessionCode = code;
     applyFromServer(vitals);
+    renderAlarmStatus(monitors);
     showControlPanel();
 });
 
-connection.on("SessionJoined", (code, vitals) => {
+connection.on("SessionJoined", (code, vitals, monitors) => {
     sessionCode = code;
     applyFromServer(vitals);
+    renderAlarmStatus(monitors);
     showControlPanel();
+});
+
+connection.on("MonitorsUpdated", (monitors) => {
+    renderAlarmStatus(monitors);
+});
+
+// Re-join the session group after a dropped connection
+connection.onreconnected(() => {
+    if (sessionCode) connection.invoke("JoinSession", sessionCode).catch(() => {});
 });
 
 connection.on("Error", (msg) => {

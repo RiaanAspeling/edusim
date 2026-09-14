@@ -5,6 +5,14 @@ const connection = new signalR.HubConnectionBuilder()
     .build();
 
 let sessionCode = null;
+let monitorStarted = false;
+
+// This monitor's name as seen by the instructor. Auto-assigned "Monitor N"
+// by the server on first join, editable by clicking it, remembered here.
+const MONITOR_NAME_KEY = 'edusim.monitorName';
+let monitorName = null;
+try { monitorName = localStorage.getItem(MONITOR_NAME_KEY) || null; } catch (e) { monitorName = null; }
+
 let vitals = {
     heartRate: 72, spO2: 98, systolicBP: 120, diastolicBP: 80,
     respiratoryRate: 16, temperature: 36.8, etCO2: 38, cvp: 5, rhythm: 'nsr',
@@ -146,27 +154,36 @@ function setNum(mainId, minId, text) {
 function updateNumerics() {
     // Readouts carry the same natural-variation offset as their waveforms, so
     // numbers and traces always agree. HR already varies via the R-R interval.
-    setNum('hrValue', 'hrMinValue', Math.round(ecgGen.getEffectiveHR()));
-    setNum('spo2Value', 'spo2MinValue',
-        Math.round(Math.min(100, Math.max(0, vitals.spO2 * (1 + jitter.spo2)))));
+    const hrDisp = Math.round(ecgGen.getEffectiveHR());
+    setNum('hrValue', 'hrMinValue', hrDisp);
+    const spo2Disp = Math.round(Math.min(100, Math.max(0, vitals.spO2 * (1 + jitter.spo2))));
+    setNum('spo2Value', 'spo2MinValue', spo2Disp);
     const sysDisp = vitals.systolicBP * (1 + jitter.bp);
     const diaDisp = vitals.diastolicBP * (1 + jitter.bp);
     setNum('bpValue', 'bpMinValue', Math.round(sysDisp) + '/' + Math.round(diaDisp));
     // MAP = diastolic + (pulse pressure / 3)
     const mapDisp = diaDisp + (sysDisp - diaDisp) / 3;
     setNum('mapValue', 'mapMinValue', Math.round(mapDisp));
-    setNum('rrValue', 'rrMinValue', Math.round(vitals.respiratoryRate * (1 + jitter.rr)));
-    setNum('cvpValue', 'cvpMinValue', Math.round(vitals.cvp * (1 + jitter.cvp)));
+    const rrDisp = Math.round(vitals.respiratoryRate * (1 + jitter.rr));
+    setNum('rrValue', 'rrMinValue', rrDisp);
+    const cvpDisp = Math.round(vitals.cvp * (1 + jitter.cvp));
+    setNum('cvpValue', 'cvpMinValue', cvpDisp);
     // ICP and cerebral perfusion pressure (CPP = MAP − ICP)
     const icpDisp = vitals.icp * (1 + jitter.icp);
     setNum('icpValue', 'icpMinValue', Math.round(icpDisp));
     setNum('cppValue', 'cppMinValue', Math.round(mapDisp - icpDisp));
     // EtCO2 and Temp live at the bottom only (no waveform, no toggle)
     const tempJitter = (vitals.tempIrregularity / 100) * physioNoise(ecgGen.time, 7);
-    document.getElementById('tempValue').textContent =
-        (vitals.temperature * (1 + tempJitter)).toFixed(1);
-    document.getElementById('etco2Value').textContent =
-        Math.round(vitals.etCO2 * (1 + jitter.etco2));
+    const tempDisp = +(vitals.temperature * (1 + tempJitter)).toFixed(1);
+    document.getElementById('tempValue').textContent = tempDisp.toFixed(1);
+    const etco2Disp = Math.round(vitals.etCO2 * (1 + jitter.etco2));
+    document.getElementById('etco2Value').textContent = etco2Disp;
+
+    // Student-set alarm limits are checked against exactly what is displayed
+    evaluateAlarms({
+        hr: hrDisp, sys: Math.round(sysDisp), cvp: cvpDisp, icp: Math.round(icpDisp),
+        spo2: spo2Disp, rr: rrDisp, etco2: etco2Disp, temp: tempDisp
+    }, performance.now());
 }
 
 const rhythmNames = {
@@ -441,16 +458,85 @@ function stopPersistentAlarm() {
 }
 
 // SignalR event handlers
-connection.on("SessionJoined", (code, v) => {
+connection.on("MonitorJoined", (code, v, name) => {
     sessionCode = code;
     document.getElementById('sessionCode').textContent = code;
+    setMonitorName(name);
     applyVitals(v);
-    document.getElementById('joinScreen').style.display = 'none';
-    document.getElementById('monitorScreen').style.display = 'block';
-    resizeCanvases();
-    initAudio();
-    requestAnimationFrame(animate);
+    if (!monitorStarted) {
+        monitorStarted = true;
+        document.getElementById('joinScreen').style.display = 'none';
+        document.getElementById('monitorScreen').style.display = 'block';
+        resizeCanvases();
+        initAudio();
+        requestAnimationFrame(animate);
+    }
+    // Let the instructor see this monitor's alarm limits straight away
+    // (also after a reconnect, when the server has a fresh entry for us)
+    sendAlarmStatus(true);
 });
+
+connection.on("MonitorRenamed", (name, error) => {
+    setMonitorName(name);
+    if (error) flashNameError(error);
+});
+
+// Re-join after a dropped connection: group membership and the server's
+// per-monitor entry are tied to the connection id.
+connection.onreconnected(() => {
+    if (sessionCode) connection.invoke("JoinMonitor", sessionCode, monitorName).catch(() => {});
+});
+
+function setMonitorName(name) {
+    monitorName = name;
+    try { localStorage.setItem(MONITOR_NAME_KEY, name); } catch (e) { /* ignore */ }
+    const label = document.getElementById('monitorName');
+    label.textContent = name;
+    label.classList.remove('monitor-name-error');
+}
+
+let nameErrorTimer = null;
+function flashNameError(msg) {
+    const label = document.getElementById('monitorName');
+    label.textContent = msg;
+    label.classList.add('monitor-name-error');
+    clearTimeout(nameErrorTimer);
+    nameErrorTimer = setTimeout(() => setMonitorName(monitorName), 2500);
+}
+
+// Inline rename: click the name, edit, Enter/blur to save, Escape to cancel
+(function initMonitorRename() {
+    const label = document.getElementById('monitorName');
+    const input = document.getElementById('monitorNameInput');
+    let cancelled = false;
+
+    label.addEventListener('click', (e) => {
+        e.stopPropagation();
+        cancelled = false;
+        input.value = monitorName || '';
+        label.style.display = 'none';
+        input.style.display = '';
+        input.focus();
+        input.select();
+    });
+
+    function finish() {
+        input.style.display = 'none';
+        label.style.display = '';
+        const name = input.value.trim();
+        if (!cancelled && name && name !== monitorName && sessionCode) {
+            connection.invoke("RenameMonitor", sessionCode, name).catch(() => {});
+        }
+    }
+
+    input.addEventListener('click', e => e.stopPropagation());
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { input.blur(); }
+        else if (e.key === 'Escape') { cancelled = true; input.blur(); }
+        e.stopPropagation();
+    });
+    input.addEventListener('blur', finish);
+})();
 
 connection.on("VitalsUpdated", (v) => {
     applyVitals(v);
@@ -531,7 +617,7 @@ async function joinSession() {
         return;
     }
     document.getElementById('joinError').textContent = '';
-    await connection.invoke("JoinSession", code);
+    await connection.invoke("JoinMonitor", code, monitorName);
 }
 
 // Handle Enter key on input
@@ -546,8 +632,9 @@ window.addEventListener('resize', () => {
     }
 });
 
-// Fullscreen on double-click
-document.addEventListener('dblclick', () => {
+// Fullscreen on double-click (not on readings or the alarm panel, which are clickable)
+document.addEventListener('dblclick', (e) => {
+    if (e.target.closest && e.target.closest('[data-alarm], .alarm-panel, .session-info')) return;
     if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen();
     } else {
@@ -565,7 +652,7 @@ function getSessionFromURL() {
 connection.start().then(() => {
     const code = getSessionFromURL();
     if (code) {
-        connection.invoke("JoinSession", code.toUpperCase());
+        connection.invoke("JoinMonitor", code.toUpperCase(), monitorName);
     }
 }).catch(err => {
     console.error('SignalR connection error:', err);
