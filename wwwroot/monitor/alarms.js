@@ -148,8 +148,10 @@ function channelRangeHtml(ch, withLabel) {
     const st = alarmState[ch];
     const label = withLabel ? ALARM_CHANNELS[ch].label + ' ' : '';
     let html;
-    if (!lim.enabled) {
-        html = label + 'ALARM OFF';
+    if (channelIsOff(ch)) {
+        // Off (switched off, or no limits set): "ALARM OFF" alone, or
+        // "Sys OFF" when several channels share one badge
+        html = withLabel ? label + 'OFF' : 'ALARM OFF';
     } else {
         const lowCls = st.active === 'low' ? ' class="hit"' : '';
         const highCls = st.active === 'high' ? ' class="hit"' : '';
@@ -161,7 +163,8 @@ function channelRangeHtml(ch, withLabel) {
     return html;
 }
 
-function channelIsUnset(ch) {
+// A channel with its alarm switched off, or with no limits set, is "off"
+function channelIsOff(ch) {
     const lim = alarmLimits[ch];
     return !lim.enabled || (lim.low === null && lim.high === null);
 }
@@ -180,14 +183,18 @@ function renderAlarmVisuals() {
         });
 
         const multi = grp.channels.length > 1;
+        const unset = grp.channels.every(channelIsOff);
         const parts = grp.channels.map(ch => channelRangeHtml(ch, multi));
-        const unset = grp.channels.every(channelIsUnset);
         // Main badge (in the numeric box): first channel on its own line, the
-        // rest smaller beneath. Bottom-bar badge: everything on one line.
-        const mainHtml = multi
-            ? '<div>' + parts[0] + '</div><div class="sub">' + parts.slice(1).join(' · ') + '</div>'
-            : parts[0];
-        const minHtml = parts.join(' · ');
+        // rest smaller beneath. Bottom-bar badge: everything on one line. A
+        // multi-channel reading with everything off collapses to "ALARM OFF".
+        let mainHtml, minHtml;
+        if (!multi || unset) {
+            mainHtml = minHtml = unset ? 'ALARM OFF' : parts[0];
+        } else {
+            mainHtml = '<div>' + parts[0] + '</div><div class="sub">' + parts.slice(1).join(' · ') + '</div>';
+            minHtml = parts.join(' · ');
+        }
 
         grp.badges.forEach((id, i) => {
             const el = document.getElementById(id);
