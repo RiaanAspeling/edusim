@@ -1,21 +1,38 @@
 // Student-set alarm limits.
 //
-// Each numeric reading carries a high/low limit pair the student configures by
-// clicking the reading (a GE-style panel slides in). Breaches flash the reading
+// Each numeric reading is a "group" with one or more alarm channels (ABP has
+// three: Sys, Dia, MAP; everything else has one). Clicking a reading slides in
+// a GE-style panel with one column per channel: high/low limits, a scale bar
+// with the live value, and an Alarm On/Off switch. Breaches flash the reading
 // and sound a tone until the value returns in range or the student silences
 // it. Limits persist in this browser and are mirrored to the instructor via
 // SignalR (monitor.js calls evaluateAlarms() every frame and sendAlarmStatus()
 // on join).
 
 const ALARM_CHANNELS = {
-    hr:    { label: 'HR',    unit: 'bpm',  min: 0,  max: 300, step: 1,   def: { low: 50, high: 120 },  boxes: ['hrBox', 'hrMin'],     badges: ['hrRange', 'hrMinRange'] },
-    sys:   { label: 'Sys',   unit: 'mmHg', min: 0,  max: 250, step: 1,   def: { low: 90, high: 160 },  boxes: ['abpBox', 'abpMin'],   badges: ['sysRange', 'sysMinRange'], title: 'ABP Systolic', prefix: 'Sys ' },
-    cvp:   { label: 'CVP',   unit: 'mmHg', min: -5, max: 30,  step: 1,   def: { low: 0, high: 12 },    boxes: ['cvpBox', 'cvpMin'],   badges: ['cvpRange', 'cvpMinRange'] },
-    icp:   { label: 'ICP',   unit: 'mmHg', min: 0,  max: 60,  step: 1,   def: { low: 0, high: 20 },    boxes: ['icpBox', 'icpMin'],   badges: ['icpRange', 'icpMinRange'] },
-    spo2:  { label: 'SpO2',  unit: '%',    min: 30, max: 100, step: 1,   def: { low: 90, high: 100 },  boxes: ['spo2Box', 'spo2Min'], badges: ['spo2Range', 'spo2MinRange'] },
-    rr:    { label: 'RR',    unit: '/min', min: 0,  max: 60,  step: 1,   def: { low: 8, high: 30 },    boxes: ['rrBox', 'rrMin'],     badges: ['rrRange', 'rrMinRange'] },
-    etco2: { label: 'EtCO2', unit: 'mmHg', min: 0,  max: 100, step: 1,   def: { low: 30, high: 50 },   boxes: ['etco2Box'],           badges: ['etco2Range'] },
-    temp:  { label: 'Temp',  unit: '°C', min: 30, max: 43, step: 0.1, def: { low: 36.0, high: 38.5 }, boxes: ['tempBox'],        badges: ['tempRange'] }
+    hr:    { group: 'hr',    label: 'HR',    unit: 'bpm',    min: 0,  max: 300, step: 1,   def: { low: 50, high: 120 } },
+    sys:   { group: 'abp',   label: 'Sys',   unit: 'mmHg',   min: 0,  max: 250, step: 1,   def: { low: 90, high: 160 } },
+    dia:   { group: 'abp',   label: 'Dia',   unit: 'mmHg',   min: 0,  max: 150, step: 1,   def: { low: 50, high: 100 } },
+    map:   { group: 'abp',   label: 'MAP',   unit: 'mmHg',   min: 0,  max: 200, step: 1,   def: { low: 65, high: 110 } },
+    cvp:   { group: 'cvp',   label: 'CVP',   unit: 'mmHg',   min: -5, max: 30,  step: 1,   def: { low: 0, high: 12 } },
+    icp:   { group: 'icp',   label: 'ICP',   unit: 'mmHg',   min: 0,  max: 60,  step: 1,   def: { low: 0, high: 20 } },
+    spo2:  { group: 'spo2',  label: 'SpO2',  unit: '%',      min: 30, max: 100, step: 1,   def: { low: 90, high: 100 } },
+    rr:    { group: 'rr',    label: 'RR',    unit: '/min',   min: 0,  max: 60,  step: 1,   def: { low: 8, high: 30 } },
+    etco2: { group: 'etco2', label: 'EtCO2', unit: 'mmHg',   min: 0,  max: 100, step: 1,   def: { low: 30, high: 50 } },
+    temp:  { group: 'temp',  label: 'Temp',  unit: '°C', min: 30, max: 43,  step: 0.1, def: { low: 36.0, high: 38.5 } }
+};
+
+// A group is one clickable reading: its channels, the elements that flash on a
+// breach (boxes) and the elements that show the range text (badges).
+const ALARM_GROUPS = {
+    hr:    { title: 'HR',   channels: ['hr'],                boxes: ['hrBox', 'hrMin'],     badges: ['hrRange', 'hrMinRange'] },
+    abp:   { title: 'ABP',  channels: ['sys', 'dia', 'map'], boxes: ['abpBox', 'abpMin'],   badges: ['abpRange', 'abpMinRange'] },
+    cvp:   { title: 'CVP',  channels: ['cvp'],               boxes: ['cvpBox', 'cvpMin'],   badges: ['cvpRange', 'cvpMinRange'] },
+    icp:   { title: 'ICP',  channels: ['icp'],               boxes: ['icpBox', 'icpMin'],   badges: ['icpRange', 'icpMinRange'] },
+    spo2:  { title: 'SpO2', channels: ['spo2'],              boxes: ['spo2Box', 'spo2Min'], badges: ['spo2Range', 'spo2MinRange'] },
+    rr:    { title: 'RR',   channels: ['rr'],                boxes: ['rrBox', 'rrMin'],     badges: ['rrRange', 'rrMinRange'] },
+    etco2: { title: 'EtCO2', channels: ['etco2'],            boxes: ['etco2Box'],           badges: ['etco2Range'] },
+    temp:  { title: 'Temp', channels: ['temp'],              boxes: ['tempBox'],            badges: ['tempRange'] }
 };
 
 const ALARM_DELAY_MS = 2000;     // breach must persist this long before alarming
@@ -27,7 +44,7 @@ const RANGE_SEP = ' ⌇ ';    // "⌇" as used on GE monitors
 const alarmLimits = {};
 // ch -> { breachSince, active: null|'high'|'low', silencedUntil, lastLow, lastHigh }
 const alarmState = {};
-let alarmPanelChannel = null;
+let alarmPanelGroup = null;
 let alarmToneTimer = null;
 let alarmSendTimer = null;
 let alarmLastSentSig = '';
@@ -72,8 +89,8 @@ function clampBound(ch, v) {
 
 // ---------------------------------------------------------------- evaluation
 
-// values: { hr, sys, cvp, icp, spo2, rr, etco2, temp } as displayed. Called
-// every animation frame from updateNumerics().
+// values: { hr, sys, dia, map, cvp, icp, spo2, rr, etco2, temp } as displayed.
+// Called every animation frame from updateNumerics().
 function evaluateAlarms(values, now) {
     alarmLatestValues = values;
     let changed = false;
@@ -104,7 +121,7 @@ function evaluateAlarms(values, now) {
         updateAlarmAudio();
         sendAlarmStatus();
     }
-    if (alarmPanelChannel) updateAlarmPanelLive();
+    if (alarmPanelGroup) updateAlarmPanelLive();
 }
 
 function isSilenced(ch) {
@@ -118,42 +135,65 @@ function anyAudibleAlarm() {
     return false;
 }
 
+// Channels in a group that are currently alarming
+function activeInGroup(group) {
+    return ALARM_GROUPS[group].channels.filter(ch => alarmState[ch].active);
+}
+
 // ---------------------------------------------------------------- visuals
 
-function renderAlarmVisuals() {
-    for (const ch in ALARM_CHANNELS) {
-        const c = ALARM_CHANNELS[ch];
-        const lim = alarmLimits[ch];
-        const st = alarmState[ch];
-        const silenced = st.active && isSilenced(ch);
+// Range text for one channel, e.g. "Sys 90 ⌇ 160" (label optional)
+function channelRangeHtml(ch, withLabel) {
+    const lim = alarmLimits[ch];
+    const st = alarmState[ch];
+    const label = withLabel ? ALARM_CHANNELS[ch].label + ' ' : '';
+    let html;
+    if (!lim.enabled) {
+        html = label + 'ALARM OFF';
+    } else {
+        const lowCls = st.active === 'low' ? ' class="hit"' : '';
+        const highCls = st.active === 'high' ? ' class="hit"' : '';
+        html = label +
+            '<span' + lowCls + '>' + fmtBound(ch, lim.low) + '</span>' + RANGE_SEP +
+            '<span' + highCls + '>' + fmtBound(ch, lim.high) + '</span>';
+    }
+    if (st.active && isSilenced(ch)) html = '🔕 ' + html;
+    return html;
+}
 
-        c.boxes.forEach(id => {
+function channelIsUnset(ch) {
+    const lim = alarmLimits[ch];
+    return !lim.enabled || (lim.low === null && lim.high === null);
+}
+
+function renderAlarmVisuals() {
+    for (const g in ALARM_GROUPS) {
+        const grp = ALARM_GROUPS[g];
+        const active = activeInGroup(g);
+        const allSilenced = active.length > 0 && active.every(ch => isSilenced(ch));
+
+        grp.boxes.forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
-            el.classList.toggle('alarm-breach', !!st.active);
-            el.classList.toggle('alarm-silenced', !!silenced);
+            el.classList.toggle('alarm-breach', active.length > 0);
+            el.classList.toggle('alarm-silenced', allSilenced);
         });
 
-        let html;
-        let cls = 'badge';
-        if (!lim.enabled) {
-            html = 'ALARM OFF';
-            cls += ' unset';
-        } else {
-            const lowCls = st.active === 'low' ? ' class="hit"' : '';
-            const highCls = st.active === 'high' ? ' class="hit"' : '';
-            html = (c.prefix || '') +
-                '<span' + lowCls + '>' + fmtBound(ch, lim.low) + '</span>' + RANGE_SEP +
-                '<span' + highCls + '>' + fmtBound(ch, lim.high) + '</span>';
-            if (lim.low === null && lim.high === null) cls += ' unset';
-        }
-        if (silenced) html = '🔕 ' + html;
-        c.badges.forEach(id => {
+        const multi = grp.channels.length > 1;
+        const parts = grp.channels.map(ch => channelRangeHtml(ch, multi));
+        const unset = grp.channels.every(channelIsUnset);
+        // Main badge (in the numeric box): first channel on its own line, the
+        // rest smaller beneath. Bottom-bar badge: everything on one line.
+        const mainHtml = multi
+            ? '<div>' + parts[0] + '</div><div class="sub">' + parts.slice(1).join(' · ') + '</div>'
+            : parts[0];
+        const minHtml = parts.join(' · ');
+
+        grp.badges.forEach((id, i) => {
             const el = document.getElementById(id);
             if (!el) return;
-            el.innerHTML = html;
-            el.className = el.className.replace(/\b(unset)\b/g, '').trim();
-            if (cls.includes('unset')) el.classList.add('unset');
+            el.innerHTML = (i === 0) ? mainHtml : minHtml;
+            el.classList.toggle('unset', unset);
         });
     }
 }
@@ -195,15 +235,8 @@ function updateAlarmAudio() {
     }
 }
 
-function silenceAlarm(ch) {
-    alarmState[ch].silencedUntil = Date.now() + ALARM_SILENCE_MS;
-    renderAlarmVisuals();
-    updateAlarmAudio();
-    sendAlarmStatus();
-}
-
-function unsilenceAlarm(ch) {
-    alarmState[ch].silencedUntil = 0;
+function silenceChannels(chs, silence) {
+    chs.forEach(ch => { alarmState[ch].silencedUntil = silence ? Date.now() + ALARM_SILENCE_MS : 0; });
     renderAlarmVisuals();
     updateAlarmAudio();
     sendAlarmStatus();
@@ -275,18 +308,15 @@ function blurAlarmInputs() {
     if (el && el.classList && el.classList.contains('alarm-spinner-input')) el.blur();
 }
 
-function toggleBoundOff(bound) {
-    const ch = alarmPanelChannel;
-    if (!ch) return;
+function toggleBoundOff(ch, bound) {
     blurAlarmInputs();
     if (alarmLimits[ch][bound] === null) stepBound(ch, bound, 0);
     else setBound(ch, bound, null);
 }
 
-function alarmInputChanged(bound) {
-    const ch = alarmPanelChannel;
-    if (!ch) return;
-    const input = document.getElementById(bound === 'high' ? 'alarmHighInput' : 'alarmLowInput');
+function alarmInputChanged(ch, bound) {
+    const input = document.getElementById('alarmInput-' + bound + '-' + ch);
+    if (!input) return;
     const raw = input.value.trim();
     if (raw === '' || raw.toUpperCase() === 'OFF') { setBound(ch, bound, null); return; }
     const v = parseFloat(raw);
@@ -294,9 +324,7 @@ function alarmInputChanged(bound) {
     setBound(ch, bound, v);
 }
 
-function setAlarmEnabled(enabled) {
-    const ch = alarmPanelChannel;
-    if (!ch) return;
+function setAlarmEnabled(ch, enabled) {
     const lim = alarmLimits[ch];
     if (lim.enabled === enabled) return;
     lim.enabled = enabled;
@@ -311,105 +339,155 @@ function setAlarmEnabled(enabled) {
     sendAlarmStatus();
 }
 
+// Silence button: silences every alarming channel in the open group, or
+// cancels the silence if they are all already silenced.
 function silenceCurrent() {
-    const ch = alarmPanelChannel;
-    if (!ch) return;
-    if (isSilenced(ch)) unsilenceAlarm(ch); else silenceAlarm(ch);
+    if (!alarmPanelGroup) return;
+    const active = activeInGroup(alarmPanelGroup);
+    if (!active.length) return;
+    const allSilenced = active.every(ch => isSilenced(ch));
+    silenceChannels(active, !allSilenced);
     renderAlarmPanel();
 }
 
 // ---------------------------------------------------------------- panel
 
-function openAlarmPanel(ch) {
-    if (!ALARM_CHANNELS[ch]) return;
-    alarmPanelChannel = ch;
+function openAlarmPanel(group) {
+    if (!ALARM_GROUPS[group]) return;
+    alarmPanelGroup = group;
+    buildAlarmPanel(group);
     const panel = document.getElementById('alarmPanel');
+    panel.classList.remove('cols-1', 'cols-2', 'cols-3');
+    panel.classList.add('cols-' + ALARM_GROUPS[group].channels.length);
     panel.classList.add('open');
     renderAlarmPanel();
 }
 
 function closeAlarmPanel() {
-    alarmPanelChannel = null;
+    alarmPanelGroup = null;
     document.getElementById('alarmPanel').classList.remove('open');
 }
 
+function spinnerHtml(ch, bound) {
+    const cap = bound === 'high' ? 'High' : 'Low';
+    return '<div class="alarm-spinner" id="alarmSpinner-' + bound + '-' + ch + '">' +
+        '<div class="alarm-spinner-label">' + cap + '</div>' +
+        '<input type="number" id="alarmInput-' + bound + '-' + ch + '" class="alarm-spinner-input" placeholder="OFF" ' +
+            'onchange="alarmInputChanged(\'' + ch + '\',\'' + bound + '\')" onkeydown="if(event.key===\'Enter\')this.blur()">' +
+        '<div class="alarm-spinner-btns">' +
+            '<button data-ch="' + ch + '" data-bound="' + bound + '" data-dir="1" aria-label="Raise ' + bound + ' limit">&#9650;</button>' +
+            '<button data-ch="' + ch + '" data-bound="' + bound + '" data-dir="-1" aria-label="Lower ' + bound + ' limit">&#9660;</button>' +
+        '</div>' +
+        '<button class="alarm-off-btn" id="alarmOff-' + bound + '-' + ch + '" onclick="toggleBoundOff(\'' + ch + '\',\'' + bound + '\')"></button>' +
+        '</div>';
+}
+
+// One column per channel; the same layout is repeated for multi-channel groups
+function buildAlarmPanel(group) {
+    const grp = ALARM_GROUPS[group];
+    const multi = grp.channels.length > 1;
+    document.getElementById('alarmPanelTitle').textContent = grp.title;
+    document.getElementById('alarmPanelBody').innerHTML = grp.channels.map(ch => {
+        const c = ALARM_CHANNELS[ch];
+        return '<div class="alarm-col" id="alarmCol-' + ch + '">' +
+            (multi ? '<div class="alarm-col-title">' + c.label + '</div>' : '') +
+            '<div class="alarm-col-main">' +
+                '<div class="alarm-spinners">' + spinnerHtml(ch, 'high') + spinnerHtml(ch, 'low') + '</div>' +
+                '<div class="alarm-bar-wrap">' +
+                    '<div class="alarm-bar-scale">' + fmtBound(ch, c.max) + '</div>' +
+                    '<div class="alarm-bar">' +
+                        '<div class="alarm-bar-range" id="alarmBarRange-' + ch + '"></div>' +
+                        '<div class="alarm-bar-current" id="alarmBarCurrent-' + ch + '"></div>' +
+                    '</div>' +
+                    '<div class="alarm-bar-scale">' + fmtBound(ch, c.min) + '</div>' +
+                    '<div class="alarm-bar-unit">' + c.unit + '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="alarm-enable-group">' +
+                '<span class="alarm-enable-label">Alarm</span>' +
+                '<button id="alarmEnableOn-' + ch + '" class="alarm-enable-btn" onclick="setAlarmEnabled(\'' + ch + '\',true)">On</button>' +
+                '<button id="alarmEnableOff-' + ch + '" class="alarm-enable-btn" onclick="setAlarmEnabled(\'' + ch + '\',false)">Off</button>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+}
+
 function renderAlarmPanel() {
-    const ch = alarmPanelChannel;
-    if (!ch) return;
-    const c = ALARM_CHANNELS[ch];
-    const lim = alarmLimits[ch];
-
-    document.getElementById('alarmPanelTitle').textContent = c.title || c.label;
-    document.getElementById('alarmBarMax').textContent = fmtBound(ch, c.max);
-    document.getElementById('alarmBarMin').textContent = fmtBound(ch, c.min);
-    document.getElementById('alarmBarUnit').textContent = c.unit;
-
-    ['high', 'low'].forEach(bound => {
-        const input = document.getElementById(bound === 'high' ? 'alarmHighInput' : 'alarmLowInput');
-        const offBtn = document.getElementById(bound === 'high' ? 'alarmHighOff' : 'alarmLowOff');
-        const spinner = document.getElementById(bound === 'high' ? 'alarmSpinnerHigh' : 'alarmSpinnerLow');
-        input.step = c.step;
-        input.min = c.min;
-        input.max = c.max;
-        if (lim[bound] === null) {
-            input.value = '';
-            offBtn.textContent = 'Switch ' + bound + ' limit on';
-            offBtn.classList.add('active');
-            spinner.classList.add('is-off');
-        } else {
-            if (document.activeElement !== input) input.value = fmtBound(ch, lim[bound]);
-            offBtn.textContent = 'Switch ' + bound + ' limit off';
-            offBtn.classList.remove('active');
-            spinner.classList.remove('is-off');
-        }
+    if (!alarmPanelGroup) return;
+    ALARM_GROUPS[alarmPanelGroup].channels.forEach(ch => {
+        const c = ALARM_CHANNELS[ch];
+        const lim = alarmLimits[ch];
+        ['high', 'low'].forEach(bound => {
+            const input = document.getElementById('alarmInput-' + bound + '-' + ch);
+            const offBtn = document.getElementById('alarmOff-' + bound + '-' + ch);
+            const spinner = document.getElementById('alarmSpinner-' + bound + '-' + ch);
+            if (!input) return;
+            input.step = c.step;
+            input.min = c.min;
+            input.max = c.max;
+            if (lim[bound] === null) {
+                input.value = '';
+                offBtn.textContent = 'Switch ' + bound + ' limit on';
+                offBtn.classList.add('active');
+                spinner.classList.add('is-off');
+            } else {
+                if (document.activeElement !== input) input.value = fmtBound(ch, lim[bound]);
+                offBtn.textContent = 'Switch ' + bound + ' limit off';
+                offBtn.classList.remove('active');
+                spinner.classList.remove('is-off');
+            }
+        });
+        document.getElementById('alarmCol-' + ch).classList.toggle('disabled', !lim.enabled);
+        document.getElementById('alarmEnableOn-' + ch).classList.toggle('active', lim.enabled);
+        document.getElementById('alarmEnableOff-' + ch).classList.toggle('active', !lim.enabled);
     });
-
-    const panel = document.getElementById('alarmPanel');
-    panel.classList.toggle('disabled', !lim.enabled);
-    document.getElementById('alarmEnableOn').classList.toggle('active', lim.enabled);
-    document.getElementById('alarmEnableOff').classList.toggle('active', !lim.enabled);
-
     updateAlarmPanelLive();
 }
 
-// Cheap per-frame refresh: current-value marker, range shading, silence countdown
+// Cheap per-frame refresh: current-value markers, range shading, silence countdown
 function updateAlarmPanelLive() {
-    const ch = alarmPanelChannel;
-    if (!ch) return;
-    const c = ALARM_CHANNELS[ch];
-    const lim = alarmLimits[ch];
-    const st = alarmState[ch];
-    const span = c.max - c.min;
-    const pct = v => Math.max(0, Math.min(100, (v - c.min) / span * 100));
+    if (!alarmPanelGroup) return;
+    const chs = ALARM_GROUPS[alarmPanelGroup].channels;
+    chs.forEach(ch => {
+        const c = ALARM_CHANNELS[ch];
+        const lim = alarmLimits[ch];
+        const st = alarmState[ch];
+        const span = c.max - c.min;
+        const pct = v => Math.max(0, Math.min(100, (v - c.min) / span * 100));
 
-    const range = document.getElementById('alarmBarRange');
-    const hi = lim.high !== null ? lim.high : c.max;
-    const lo = lim.low !== null ? lim.low : c.min;
-    range.style.top = (100 - pct(hi)) + '%';
-    range.style.height = Math.max(0, pct(hi) - pct(lo)) + '%';
-    range.style.display = lim.enabled ? '' : 'none';
+        const range = document.getElementById('alarmBarRange-' + ch);
+        const cur = document.getElementById('alarmBarCurrent-' + ch);
+        if (!range || !cur) return;
+        const hi = lim.high !== null ? lim.high : c.max;
+        const lo = lim.low !== null ? lim.low : c.min;
+        range.style.top = (100 - pct(hi)) + '%';
+        range.style.height = Math.max(0, pct(hi) - pct(lo)) + '%';
+        range.style.display = lim.enabled ? '' : 'none';
 
-    const cur = document.getElementById('alarmBarCurrent');
-    const v = alarmLatestValues[ch];
-    if (typeof v === 'number' && !isNaN(v)) {
-        cur.style.display = '';
-        cur.style.top = (100 - pct(v)) + '%';
-        cur.setAttribute('data-value', fmtBound(ch, v));
-        cur.classList.toggle('breach', !!st.active);
-    } else {
-        cur.style.display = 'none';
-    }
+        const v = alarmLatestValues[ch];
+        if (typeof v === 'number' && !isNaN(v)) {
+            cur.style.display = '';
+            cur.style.top = (100 - pct(v)) + '%';
+            cur.setAttribute('data-value', fmtBound(ch, v));
+            cur.classList.toggle('breach', !!st.active);
+        } else {
+            cur.style.display = 'none';
+        }
+    });
 
     const silenceBtn = document.getElementById('alarmSilenceBtn');
-    if (isSilenced(ch)) {
-        const s = Math.max(0, Math.ceil((st.silencedUntil - Date.now()) / 1000));
+    const active = chs.filter(ch => alarmState[ch].active);
+    const silenced = active.filter(ch => isSilenced(ch));
+    if (active.length && silenced.length === active.length) {
+        const until = Math.min(...silenced.map(ch => alarmState[ch].silencedUntil));
+        const s = Math.max(0, Math.ceil((until - Date.now()) / 1000));
         silenceBtn.textContent = 'Silenced ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
         silenceBtn.classList.add('active');
         silenceBtn.disabled = false;
     } else {
         silenceBtn.textContent = 'Silence 2 min';
         silenceBtn.classList.remove('active');
-        silenceBtn.disabled = !st.active;
+        silenceBtn.disabled = active.length === 0;
     }
 }
 
@@ -423,35 +501,37 @@ function initAlarms() {
     document.querySelectorAll('[data-alarm]').forEach(el => {
         el.addEventListener('click', (e) => {
             e.stopPropagation();
-            const ch = el.getAttribute('data-alarm');
-            if (alarmState[ch].active && !isSilenced(ch)) silenceAlarm(ch);
-            openAlarmPanel(ch);
+            const group = el.getAttribute('data-alarm');
+            const audible = activeInGroup(group).filter(ch => !isSilenced(ch));
+            if (audible.length) silenceChannels(audible, true);
+            openAlarmPanel(group);
         });
     });
 
     const panel = document.getElementById('alarmPanel');
     panel.addEventListener('click', e => e.stopPropagation());
     panel.addEventListener('dblclick', e => e.stopPropagation());
-    document.addEventListener('click', () => { if (alarmPanelChannel) closeAlarmPanel(); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape' && alarmPanelChannel) closeAlarmPanel(); });
+    document.addEventListener('click', () => { if (alarmPanelGroup) closeAlarmPanel(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && alarmPanelGroup) closeAlarmPanel(); });
 
-    // Spinner arrows: click steps once, press-and-hold auto-repeats
-    panel.querySelectorAll('.alarm-spinner-btns button').forEach(btn => {
-        const bound = btn.dataset.bound;
-        const dir = parseInt(btn.dataset.dir, 10);
-        let holdTimer = null, repeatTimer = null;
-        const stop = () => { clearTimeout(holdTimer); clearInterval(repeatTimer); holdTimer = repeatTimer = null; };
-        btn.addEventListener('pointerdown', (e) => {
-            e.preventDefault();
-            if (!alarmPanelChannel) return;
-            blurAlarmInputs();
-            stepBound(alarmPanelChannel, bound, dir);
-            holdTimer = setTimeout(() => {
-                repeatTimer = setInterval(() => stepBound(alarmPanelChannel, bound, dir), 70);
-            }, 450);
-        });
-        ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => btn.addEventListener(ev, stop));
+    // Spinner arrows (delegated, since columns are built per group): click
+    // steps once, press-and-hold auto-repeats.
+    let holdTimer = null, repeatTimer = null;
+    const stopRepeat = () => { clearTimeout(holdTimer); clearInterval(repeatTimer); holdTimer = repeatTimer = null; };
+    document.getElementById('alarmPanelBody').addEventListener('pointerdown', (e) => {
+        const btn = e.target.closest && e.target.closest('.alarm-spinner-btns button');
+        if (!btn) return;
+        e.preventDefault();
+        stopRepeat();
+        const ch = btn.dataset.ch, bound = btn.dataset.bound, dir = parseInt(btn.dataset.dir, 10);
+        blurAlarmInputs();
+        stepBound(ch, bound, dir);
+        holdTimer = setTimeout(() => {
+            repeatTimer = setInterval(() => stepBound(ch, bound, dir), 70);
+        }, 450);
     });
+    ['pointerup', 'pointercancel'].forEach(ev => document.addEventListener(ev, stopRepeat));
+    document.getElementById('alarmPanelBody').addEventListener('pointerleave', stopRepeat);
 }
 
 document.addEventListener('DOMContentLoaded', initAlarms);

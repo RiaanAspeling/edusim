@@ -375,6 +375,21 @@ body {
     opacity: 0.3;
 }
 
+/* Multi-channel badge (ABP): first channel on top, the others smaller below */
+.alarm-range div {
+    white-space: nowrap;
+    text-align: right;
+}
+
+.alarm-range .sub {
+    font-size: 10px;
+    opacity: 0.85;
+}
+
+.numeric-box.multi-range {
+    padding-top: 30px;
+}
+
 .min-range {
     font-size: 11px;
     font-weight: 600;
@@ -447,6 +462,9 @@ body {
     transform: translateX(0);
 }
 
+.alarm-panel.cols-2 { width: 660px; }
+.alarm-panel.cols-3 { width: 940px; }
+
 .alarm-panel-header {
     display: flex;
     align-items: center;
@@ -484,9 +502,42 @@ body {
 .alarm-panel-body {
     flex: 1;
     display: flex;
-    gap: 24px;
-    padding: 22px 18px 10px;
+    gap: 18px;
+    padding: 18px 18px 10px;
     min-height: 0;
+}
+
+/* One column per channel; ABP shows three side by side */
+.alarm-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+}
+
+.alarm-col + .alarm-col {
+    border-left: 1px solid #555;
+    padding-left: 18px;
+}
+
+.alarm-col-title {
+    font-size: 17px;
+    font-weight: bold;
+    color: #ff6666;
+    margin-bottom: 8px;
+}
+
+.alarm-col-main {
+    flex: 1;
+    display: flex;
+    gap: 16px;
+    min-height: 0;
+}
+
+.alarm-col.disabled .alarm-col-main {
+    opacity: 0.4;
+    pointer-events: none;
 }
 
 .alarm-spinners {
@@ -514,7 +565,7 @@ body {
 .alarm-spinner-input {
     grid-row: 2;
     width: 100%;
-    min-width: 0;
+    min-width: 90px;
     height: 74px;
     background: #5a5a5a;
     border: 1px solid #777;
@@ -549,7 +600,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    width: 64px;
+    width: 56px;
 }
 
 .alarm-spinner-btns button {
@@ -599,7 +650,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 90px;
+    width: 80px;
     flex-shrink: 0;
 }
 
@@ -619,7 +670,7 @@ body {
     position: relative;
     flex: 1;
     min-height: 160px;
-    width: 64px;
+    width: 52px;
     background: #000;
     border: 1px solid #888;
     overflow: visible;
@@ -662,12 +713,6 @@ body {
     color: #ff3333;
 }
 
-.alarm-panel.disabled .alarm-spinners,
-.alarm-panel.disabled .alarm-bar-wrap {
-    opacity: 0.4;
-    pointer-events: none;
-}
-
 .alarm-panel-actions {
     display: flex;
     gap: 12px;
@@ -698,10 +743,11 @@ body {
 
 /* Alarm On/Off segmented control: the highlighted segment is the current state */
 .alarm-enable-group {
-    flex: 1;
     display: flex;
     align-items: stretch;
     gap: 4px;
+    height: 40px;
+    margin-top: 12px;
 }
 
 .alarm-enable-label {
@@ -749,8 +795,14 @@ body {
     padding: 0 18px 12px;
 }
 
-@media (max-width: 600px) {
-    .alarm-panel {
+@media (max-width: 1000px) {
+    .alarm-panel.cols-3 {
+        width: 100vw;
+    }
+}
+
+@media (max-width: 700px) {
+    .alarm-panel, .alarm-panel.cols-2 {
         width: 100vw;
     }
 }

@@ -100,8 +100,8 @@ function showTab(name) {
 // Student alarm limits — set on each connected monitor, mirrored here
 // read-only, one block per monitor. 'sys' is ABP systolic.
 const alarmChipChannels = [
-    ['hr', 'HR', 0], ['sys', 'Sys BP', 0], ['spo2', 'SpO2', 0], ['rr', 'RR', 0],
-    ['cvp', 'CVP', 0], ['icp', 'ICP', 0], ['etco2', 'EtCO2', 0], ['temp', 'Temp', 1]
+    ['hr', 'HR', 0], ['sys', 'Sys', 0], ['dia', 'Dia', 0], ['map', 'MAP', 0], ['spo2', 'SpO2', 0],
+    ['rr', 'RR', 0], ['cvp', 'CVP', 0], ['icp', 'ICP', 0], ['etco2', 'EtCO2', 0], ['temp', 'Temp', 1]
 ];
 const ALARM_SEP = ' \u2307 ';
 

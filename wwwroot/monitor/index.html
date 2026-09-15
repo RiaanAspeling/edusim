@@ -36,8 +36,8 @@
                 <div class="waveform-row" id="abpRow">
                     <div class="waveform-label abp-color">ABP</div>
                     <canvas id="abpCanvas" class="waveform-canvas"></canvas>
-                    <div class="numeric-box abp-color" id="abpBox" data-alarm="sys" title="Click to set alarm limits">
-                        <div class="alarm-range" id="sysRange"></div>
+                    <div class="numeric-box abp-color multi-range" id="abpBox" data-alarm="abp" title="Click to set alarm limits">
+                        <div class="alarm-range" id="abpRange"></div>
                         <div class="numeric-label">ABP</div>
                         <div class="numeric-value" id="bpValue">120/80</div>
                         <div class="numeric-unit">mmHg</div>
@@ -91,7 +91,7 @@
             <div class="bottom-bar">
                 <div class="bottom-left">
                     <div class="min-display ecg-color" id="hrMin" data-alarm="hr" style="display:none;"><span class="min-label">HR</span><span class="min-value" id="hrMinValue">72</span><span class="min-range" id="hrMinRange"></span></div>
-                    <div class="min-display abp-color" id="abpMin" data-alarm="sys" style="display:none;"><span class="min-label">ABP</span><span class="min-value" id="bpMinValue">120/80</span><span class="min-sub">(<span id="mapMinValue">93</span>)</span><span class="min-range" id="sysMinRange"></span></div>
+                    <div class="min-display abp-color" id="abpMin" data-alarm="abp" style="display:none;"><span class="min-label">ABP</span><span class="min-value" id="bpMinValue">120/80</span><span class="min-sub">(<span id="mapMinValue">93</span>)</span><span class="min-range" id="abpMinRange"></span></div>
                     <div class="min-display cvp-color" id="cvpMin" data-alarm="cvp" style="display:none;"><span class="min-label">CVP</span><span class="min-value" id="cvpMinValue">5</span><span class="min-range" id="cvpMinRange"></span></div>
                     <div class="min-display icp-color" id="icpMin" data-alarm="icp" style="display:none;"><span class="min-label">ICP</span><span class="min-value" id="icpMinValue">10</span><span class="min-sub">(<span id="cppMinValue">83</span>)</span><span class="min-range" id="icpMinRange"></span></div>
                     <div class="min-display spo2-color" id="spo2Min" data-alarm="spo2" style="display:none;"><span class="min-label">SpO2</span><span class="min-value" id="spo2MinValue">98</span><span class="min-range" id="spo2MinRange"></span></div>
@@ -130,43 +130,8 @@
                 </div>
                 <button class="alarm-close" onclick="closeAlarmPanel()" aria-label="Close">&#x2715;</button>
             </div>
-            <div class="alarm-panel-body">
-                <div class="alarm-spinners">
-                    <div class="alarm-spinner" id="alarmSpinnerHigh">
-                        <div class="alarm-spinner-label">High</div>
-                        <input type="number" id="alarmHighInput" class="alarm-spinner-input" placeholder="OFF" onchange="alarmInputChanged('high')" onkeydown="if(event.key==='Enter')this.blur()">
-                        <div class="alarm-spinner-btns">
-                            <button data-bound="high" data-dir="1" aria-label="Raise high limit">&#9650;</button>
-                            <button data-bound="high" data-dir="-1" aria-label="Lower high limit">&#9660;</button>
-                        </div>
-                        <button class="alarm-off-btn" id="alarmHighOff" onclick="toggleBoundOff('high')">Switch high limit off</button>
-                    </div>
-                    <div class="alarm-spinner" id="alarmSpinnerLow">
-                        <div class="alarm-spinner-label">Low</div>
-                        <input type="number" id="alarmLowInput" class="alarm-spinner-input" placeholder="OFF" onchange="alarmInputChanged('low')" onkeydown="if(event.key==='Enter')this.blur()">
-                        <div class="alarm-spinner-btns">
-                            <button data-bound="low" data-dir="1" aria-label="Raise low limit">&#9650;</button>
-                            <button data-bound="low" data-dir="-1" aria-label="Lower low limit">&#9660;</button>
-                        </div>
-                        <button class="alarm-off-btn" id="alarmLowOff" onclick="toggleBoundOff('low')">Switch low limit off</button>
-                    </div>
-                </div>
-                <div class="alarm-bar-wrap">
-                    <div class="alarm-bar-scale" id="alarmBarMax">100</div>
-                    <div class="alarm-bar" id="alarmBar">
-                        <div class="alarm-bar-range" id="alarmBarRange"></div>
-                        <div class="alarm-bar-current" id="alarmBarCurrent"></div>
-                    </div>
-                    <div class="alarm-bar-scale" id="alarmBarMin">0</div>
-                    <div class="alarm-bar-unit" id="alarmBarUnit">%</div>
-                </div>
-            </div>
+            <div class="alarm-panel-body" id="alarmPanelBody"></div>
             <div class="alarm-panel-actions">
-                <div class="alarm-enable-group">
-                    <span class="alarm-enable-label">Alarm</span>
-                    <button id="alarmEnableOn" class="alarm-enable-btn" onclick="setAlarmEnabled(true)">On</button>
-                    <button id="alarmEnableOff" class="alarm-enable-btn" onclick="setAlarmEnabled(false)">Off</button>
-                </div>
                 <button id="alarmSilenceBtn" class="alarm-action-btn" onclick="silenceCurrent()">Silence 2 min</button>
             </div>
             <div class="alarm-panel-hint">Limits are stored in this browser and shown to the instructor.</div>

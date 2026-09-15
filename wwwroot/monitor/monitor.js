@@ -181,7 +181,8 @@ function updateNumerics() {
 
     // Student-set alarm limits are checked against exactly what is displayed
     evaluateAlarms({
-        hr: hrDisp, sys: Math.round(sysDisp), cvp: cvpDisp, icp: Math.round(icpDisp),
+        hr: hrDisp, sys: Math.round(sysDisp), dia: Math.round(diaDisp), map: Math.round(mapDisp),
+        cvp: cvpDisp, icp: Math.round(icpDisp),
         spo2: spo2Disp, rr: rrDisp, etco2: etco2Disp, temp: tempDisp
     }, performance.now());
 }
